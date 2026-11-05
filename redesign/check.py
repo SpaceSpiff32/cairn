@@ -163,7 +163,33 @@ def build_check():
         data = json.JSONDecoder().raw_decode(page, page.index('const D = ') + len('const D = '))[0]
         blob = json.dumps(data, ensure_ascii=False)
         print('built %.0f KB; data %.0f KB' % (os.path.getsize(out) / 1024, len(blob) / 1024))
+        link_audit(data)
         return blob
+
+
+# The prototype mirrors cairnrpg.com, so a link to it from a page should only be one of these: the interactive tools that
+# stay on the live site, and (as images) the modules' pictures, which are hotlinked on purpose. Anything else is a page that
+# should have been converted, or a link that should have been rewritten.
+STAYS_ON_SITE = ('/second-edition/tools/character-generator', '/first-edition/tools/character-generator')
+IMAGE_EXT = re.compile(r'\.(webp|png|jpe?g|gif|svg)$', re.I)
+
+
+def link_audit(data):
+    """Every link in the built pages, hub and menus that leaves for cairnrpg.com."""
+    found = collections.defaultdict(set)
+    for pid, p in data['pages'].items():
+        text = p['intro'] + ''.join(s['html'] + ''.join(x['html'] for x in s['subs']) for s in p['sections'])
+        for u in re.findall(r'href="(https?://[^"]+)"', text):
+            found[u].add(pid)
+    for key, l in data['links'].items():
+        found[l['href']].add('links.' + key)
+    bad = ['%s  (%s)' % (u, ', '.join(sorted(ids)[:3])) for u, ids in sorted(found.items())
+           if re.match(r'https?://(www\.)?cairnrpg\.com(/|$)', u) and not IMAGE_EXT.search(u.split('#')[0])
+           and not u.split('#')[0].rstrip('/').endswith(STAYS_ON_SITE)]
+    if bad:
+        fail('links to cairnrpg.com (pages that are not converted yet)', bad)
+    else:
+        section('links to cairnrpg.com', ['none'])
 
 
 def main():

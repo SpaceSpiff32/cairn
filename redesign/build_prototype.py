@@ -1,7 +1,7 @@
 """Cairn site redesign: build the single-file IA prototype from the real Cairn repo.
 
 python3 -I build_prototype.py [options]   (--help lists them)
-Sparse-clones yochaigal/cairn (Markdown + 4 Alegreya fonts only) into DIR if it isn't there, parses the 2e rules,
+Sparse-clones yochaigal/cairn (Markdown + 5 Alegreya fonts only) into DIR if it isn't there, parses the 2e rules,
 resources, adventures and all monsters, and writes prototype.html next to this script from prototype_template.html.
 The Adventures catalog also reads yochaigal/scrivener (its posts/ only), cloned into .scrivener-src (--refresh re-clones it).
 The newest New School Revolution post is cached in cache/blog.json; --blog-feed FILE updates it from the blog's Atom
@@ -11,7 +11,7 @@ The Core Rules translations are found and downloaded into cache/l10n/ by --refre
 with the page the live site (and each language site) serves, and lists the ones that differ.
 The checkout is data: it is read, never executed.
 """
-import argparse, base64, concurrent.futures, datetime, hashlib, html, json, os, re, shutil, subprocess, sys, urllib.parse
+import argparse, base64, collections, concurrent.futures, datetime, hashlib, html, json, os, re, shutil, subprocess, sys, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, 'prototype_template.html')
@@ -19,7 +19,8 @@ OUT = os.path.join(HERE, 'prototype.html')
 REPO = 'https://github.com/yochaigal/cairn.git'
 SITE = 'https://cairnrpg.com'
 GITHUB_BLOB = 'https://github.com/yochaigal/cairn/blob/main/'
-FONTS = [('400', 'normal', 'Alegreya-Regular.woff2'), ('700', 'normal', 'Alegreya-Bold.woff2'),
+GITHUB_RAW = 'https://github.com/yochaigal/cairn/raw/main/'
+FONTS = [('400', 'normal', 'Alegreya-Regular.woff2'), ('500', 'normal', 'Alegreya-Medium.woff2'), ('700', 'normal', 'Alegreya-Bold.woff2'),
          ('400', 'italic', 'Alegreya-Italic.woff2'), ('700', 'italic', 'Alegreya-BoldItalic.woff2')]
 HERO = os.path.join(HERE, 'assets', 'players-guide-cover.jpg')  # Player's Guide cover (cairnpress.itch.io), cropped above its title
 LOGO = '/img/logo.svg'  # the site's logo (_config.yml `logo:`)
@@ -43,7 +44,9 @@ PROPOSED = {
 IMAGES = {'__SHEET_LANDSCAPE__': 'character-sheet-landscape.jpg', '__SHEET_PORTRAIT__': 'character-sheet-portrait.jpg',
           # all three steps are layered so figures can move: the art with them painted out, and each figure on its own
           '__STEP_OVERVIEW__': 'step-procedures-base.jpg', '__LINEN__': 'backlit-linen.jpg', '__STEP_BIRD__': 'step-procedures-bird.png', '__STEP_ARM__': 'step-procedures-arm.png',
-          '__STEP_CHARGEN__': 'step-character-creation-base.jpg', '__STEP_HORSE__': 'step-character-creation-horse.png', '__STEP_CORE__': 'step-rules-base.jpg', '__STEP_SWORD_L__': 'step-rules-left.png', '__STEP_SWORD_R__': 'step-rules-right.png'}
+          '__STEP_CHARGEN__': 'step-character-creation-base.jpg', '__STEP_HORSE__': 'step-character-creation-horse.png', '__STEP_CORE__': 'step-rules-base.jpg', '__STEP_SWORD_L__': 'step-rules-left.png', '__STEP_SWORD_R__': 'step-rules-right.png',
+          # the character builder's frame round Backgrounds: one repeat of the Warden's Guide vines (p.31), as an alpha mask
+          '__VINES__': 'vines.png'}
 # The newest post on Yochai's blog. Its feed (/feed/, Atom) answers scripts with a Cloudflare 404 and sends no CORS
 # headers, so it's saved from a browser and passed with --blog-feed; the build keeps the post in cache/blog.json.
 BLOG = {'site': 'https://newschoolrevolution.com/', 'name': 'New School Revolution'}
@@ -375,10 +378,28 @@ def url_of(rel):
     return SITE + '/' + rel[:-3] + '/'
 
 
+PLACEHOLDERS = {'link-to-author-site', 'link-to-game-page'}
+REDIRECTS = {}  # repo path -> where a page that only redirects sends you (Discord, the store...), filled by load_redirects()
+REDIRECT_PATHS = {}  # the same, by the page's site path
+
+
+def load_redirects(src):
+    """Every Markdown page in the checkout that is just a redirect_to, so a link to it goes to its target, not through cairnrpg.com."""
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in ('.git', 'redesign', 'scripts', 'node_modules', '_site')]
+        for f in files:
+            if f.endswith('.md'):
+                rel = os.path.relpath(os.path.join(root, f), src)
+                to = split_fm(open(os.path.join(root, f), encoding='utf-8').read())[0].get('redirect_to')
+                if to:
+                    REDIRECTS[rel] = to
+                    REDIRECT_PATHS[site_path(url_of(rel))] = to
+
+
 def link(src, rel, label=None):
     title = title_of(src, rel)  # also dies if the page is missing
     # a page the prototype has opens in it; any other goes to cairnrpg.com
-    return {'label': label or title, 'href': '#' + ROUTES[rel] if rel in ROUTES else url_of(rel), 'path': rel}
+    return {'label': label or title, 'href': '#' + ROUTES[rel] if rel in ROUTES else REDIRECTS.get(rel) or url_of(rel), 'path': rel}
 
 
 # ---------- small escaping Markdown converter (the blocks the Second Edition uses)
@@ -417,8 +438,17 @@ def resolve(href):
         return '#' + to if to else None
     url = urllib.parse.urljoin(SOURCE['page'], href) if not re.match(r'[a-z][a-z0-9+.-]*:', href, re.I) else href
     u = urllib.parse.urlparse(url)
-    if u.scheme in ('http', 'https') and (u.hostname or '').lower() == host_of(SOURCE['site']):
-        pid = SOURCE['paths'].get(site_path(url))
+    if u.scheme in ('http', 'https') and re.sub(r'^www\.', '', (u.hostname or '').lower()) == host_of(SOURCE['site']):
+        path = site_path(url)
+        pid = SOURCE['paths'].get(path)
+        if path.rsplit('/', 1)[-1] in PLACEHOLDERS:
+            return None  # the submission guide's example links ("link-to-author-site"), which go nowhere
+        if path.endswith('.epub'):
+            return GITHUB_RAW + path.lstrip('/')  # a file the site serves, from the repo that holds it
+        if not pid and path in REDIRECT_PATHS:
+            return REDIRECT_PATHS[path]  # a page that only redirects: straight to where it goes
+        if not pid and re.match(r'/resources/monsters(/|$)', path):
+            return '#monsters'  # the Monsters index and each monster's own page are the one Monsters view here
         if pid:
             if not u.fragment:
                 return '#' + pid
@@ -432,7 +462,7 @@ def resolve(href):
     return url
 
 
-def inline(s):
+def inline(s, dice=True):
     s = re.sub(r'\\([\\`*_{}\[\]()#+\-.!|>])', lambda m: ESC + '%d;' % ord(m.group(1)), s)
     s = re.sub(r'\s*<br\s*/?>\s*', BR, s, flags=re.I).strip(BR)  # an HTML line break (table cells)
     s = re.sub(r'&(?:[a-zA-Z]+|#\d+);', lambda m: html.unescape(m.group(0)), s)  # named entities (&harr;) become the character
@@ -445,7 +475,22 @@ def inline(s):
     s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
     s = re.sub(r'(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])', r'<em>\1</em>', s)
     s = re.sub(r'(?<![\w])_(?!\s)(.+?)(?<!\s)_(?![\w])', r'<em>\1</em>', s)
+    if dice:
+        s = ''.join(part if part.startswith('<') else DICE.sub(roll_button, part) for part in re.split(r'(<a\b.*?</a>|<[^>]+>)', s))
     return re.sub(ESC + r'(\d+);', r'&#\1;', s).replace(BR, '<br>')
+
+
+# dice notation in the text, as the live site's jekyll-dice-tray links it: 1d8, d8+d8, 2d6+1. Not after a letter or digit
+# (but after CJK text, which \b would miss), only real dice, and not a map's "Areas D0 and D3". Russian's 1к6 isn't matched.
+DICE = re.compile(r'(?<![A-Za-z0-9])\d*[dD]\d+(?:\s*\+\s*\d*[dD]\d+)*(?:\s*[+-]\s*\d+(?![dD]))?(?![A-Za-z0-9])')
+DICE_SIDES = {2, 3, 4, 6, 8, 10, 12, 20, 100}
+
+
+def roll_button(m):
+    text, before = m.group(0), m.string[:m.start()]
+    if any(int(n) not in DICE_SIDES for n in re.findall(r'[dD](\d+)', text)) or ('D' in text and re.search(r'\bAreas?\b[^.]{0,40}$', before)):
+        return text
+    return '<button type="button" class="roll" data-roll="%s">%s</button>' % (re.sub(r'\s+', '', text).lower(), text)
 
 
 def plain(s):
@@ -508,6 +553,20 @@ def figure(m):
     return '<figure>%s</figure>' % ('<a href="%s">%s</a>' % (html.escape(link_to, quote=True), tag) if link_to else tag)
 
 
+DISCLOSURE = '\x04%s\x04'  # a marker line the block reader turns into a <details> opening ('+text'), its closing ('/') or the expand-all button ('*text')
+
+
+def disclosures(md):
+    """kramdown's <details markdown="block"> with its <summary>, as marker lines. A "Table of contents" one is dropped (every
+    page has its own list of sections), and so are kramdown's attribute lines ({: .no_toc }) and an empty <p></p>."""
+    md = re.sub(r'<script\b[^>]*>.*?</script>', '', md, flags=re.S | re.I)  # the FAQ's expand-all script; the button does it here
+    md = re.sub(r'<details\b[^>]*>\s*<summary\b[^>]*>\s*Table of contents\s*</summary>.*?</details>', '', md, flags=re.S | re.I)
+    md = re.sub(r'<details\b[^>]*>\s*<summary\b[^>]*>(.*?)</summary>', lambda m: '\n' + DISCLOSURE % ('+' + ' '.join(m.group(1).split())) + '\n', md, flags=re.S | re.I)
+    md = re.sub(r'</details>', '\n' + DISCLOSURE % '/' + '\n', md, flags=re.I)
+    md = re.sub(r"<a\b[^>]*id=['\"]expAll['\"][^>]*>(.*?)</a>(\{:[^}]*\})?", lambda m: '\n' + DISCLOSURE % ('*' + ' '.join(m.group(1).split())) + '\n', md, flags=re.S | re.I)
+    return re.sub(r'^\s*(\{:[^}]*\}|<p></p>)\s*$', '', md, flags=re.M)
+
+
 def blocks(md, caption=None, hids=None, hlevel=4):
     """md as HTML. hids: the ids for its #### to ###### headings, in order. hlevel: the level #### renders at (one below
     the section's own, so a #### straight under a ## doesn't skip one); ##### renders one below that."""
@@ -536,9 +595,21 @@ def blocks(md, caption=None, hids=None, hlevel=4):
                               ('<th scope="row">%s</th>' % inline(r[0]) if plain(r[0]) else '<td></td>') + ''.join('<td>%s</td>' % inline(c) for c in r[1:]))
             body = ''.join('<tr>%s</tr>' % cell(r) for r in rows[1:])
             cap = '<caption>%s</caption>' % html.escape(caption) if caption else ''
-            out.append('<div class="table-wrap"><table>%s<thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>' % (cap, head, body))
+            die = re.fullmatch(r'1?[dD](\d+)', plain(rows[0][0])) if not sideways else None  # a roll table: a die heads its first column
+            attr = ' data-die="d%s"' % die.group(1) if die and int(die.group(1)) in DICE_SIDES else ''
+            out.append('<div class="table-wrap"><table%s>%s<thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>' % (attr, cap, head, body))
             tbl.clear()
-    for line in md.splitlines():
+    for line in disclosures(md).splitlines():
+        m = re.fullmatch(r'\x04([+/*])(.*)\x04', line.strip())
+        if m:
+            flush()
+            if m.group(1) == '+':
+                out.append('<details class="disclosure"><summary>%s</summary><div class="disclosure-body">' % inline(m.group(2), dice=False))
+            elif m.group(1) == '/':
+                out.append('</div></details>')
+            else:
+                out.append('<button type="button" class="btn btn-secondary expand-all">%s</button>' % html.escape(m.group(2)))
+            continue
         m = re.fullmatch(r'\x03(\d+)\x03', line.strip())
         if m:
             flush(); out.append('<pre class="fence"><code>%s</code></pre>' % html.escape(FENCES[int(m.group(1))])); continue
@@ -546,7 +617,7 @@ def blocks(md, caption=None, hids=None, hlevel=4):
         if m:
             flush()
             hid, lvl = hids.pop(0) if hids else '', min(hlevel + len(m.group(1)) - 4, 6)
-            out.append('<h%d%s>%s</h%d>' % (lvl, ' id="%s" tabindex="-1"' % hid if hid else '', inline(heading_title(m.group(2))[0]), lvl)); continue
+            out.append('<h%d%s>%s</h%d>' % (lvl, ' id="%s" tabindex="-1"' % hid if hid else '', inline(heading_title(m.group(2))[0], dice=False), lvl)); continue
         if HR.match(line):
             flush(); out.append('<hr>'); continue
         if re.match(r'\s*>', line):
@@ -557,7 +628,7 @@ def blocks(md, caption=None, hids=None, hlevel=4):
             flush()
         if IMAGE.match(line.strip()):  # an image on its own line is its own block, even straight after a list item
             flush(); para.append(line.strip()); flush(); continue
-        if line.strip().startswith('|'):
+        if line.strip().startswith('|') or (tbl and '|' in line):  # a row may leave out its leading pipe (GFM)
             if para or items:
                 flush()
             tbl.append(line); continue
@@ -602,8 +673,17 @@ def heading_title(s):
 # ---------- the Second Edition: every page, in full
 SE_INDEX = 'second-edition.md'
 CHARGEN_REL = 'second-edition/tools/character-generator.md'
-SE_SKIP = {CHARGEN_REL}  # an interactive tool; it stays a link to the live site
+GENERATORS = {'second-edition/tools.md': (CHARGEN_REL, None), 'first-edition/tools.md': ('first-edition/tools/character-generator.md', 'First Edition Character Generator')}  # the 1e one is named apart from the footer's 2e link
+SE_SKIP = {*(g for g, _ in GENERATORS.values()), 'barebones/tools/generator.md', 'resources/monsters.md', 'resources.md'}  # the interactive tools, and the indexes that are views here
 GROUPS = {'players-guide': 'pg', 'wardens-guide': 'wg', 'backgrounds': 'bg', 'tools': 'tools'}
+# The rest of the site, section by section: a top-level file (first-edition.md) and the folder beside it (first-edition/)
+# -> the pages' group. A page's parent is the Markdown file named like its folder (resources/a.md sits under
+# resources.md; barebones/rules/x.md under barebones/rules.md), as Just the Docs would nest it.
+SECTIONS = {'first-edition': 'fe', 'resources': 'res', 'hacks': 'hk', 'barebones': 'bb', 'submissions': 'sub', 'third-party': 'tp', 'official-app': 'app', 'localization': 'loc'}
+# the First Edition SRD in three languages, published in the repo as pages (the other languages only redirect to their own sites)
+LANG_PAGES = {'localization/first-edition/brazilian-portuguese.md': 'pt-BR', 'localization/first-edition/russian.md': 'ru', 'localization/first-edition/turkish.md': 'tr'}
+HUBS = {'res': 'resources'}  # a section whose first page is a view of its own (the Resources hub): its pages sit under that view
+SKIP_DIRS = ('resources/monsters/',)  # the monster pages, which the Monsters view already shows
 # The source's own alt text is "Click Me!"; these describe the maps (proposed, for the author to adopt in the Markdown)
 IMAGE_ALT = {
     '/img/2e/dungeon-seed-example.webp': 'Example dungeon seed: nine numbered rooms joined by passages, each labelled with its type and details, '
@@ -649,6 +729,8 @@ MODULE_IMAGE_ALT = {_CAS4 + 'simple-map-gray.webp': 'Map of Lockwood Manor', _CA
 # CAS-1 to CAS-3 images whose own alt text is just their file name (proposed, written from the images)
 _FP = '/adventures/first-party/img/'
 MODULE_IMAGE_ALT.update({
+    'https://bear-images.sfo2.cdn.digitaloceanspaces.com/newschoolrevolution/gravy_press-beneath_the_muckfort_v1_singles.webp':
+        'A page from Beneath the Muckfort: the Undermuck zone, a short description of its dripping underworks and three tables, Encounters (d8), Signs (d6) and Environment (d6).',
     _FP + 'cas-1/CAS1_Map_v2.webp': 'Map of Twin Lakes: West Lake and East Lake between the Stone Forest to the north and the Humpbacks to the '
                                    'south. Old Mill Road runs north from Isthmus Town to Deadmill, the Farming Path south to Dunston (one hour '
                                    'from Isthmus Town) and on to the Cities, three days on horseback, and East Lake Pass, three hours round, '
@@ -672,28 +754,41 @@ def page_rels(src):
     for root, _, files in os.walk(os.path.join(src, 'second-edition')):
         rels += [os.path.relpath(os.path.join(root, f), src) for f in files if f.endswith('.md')]
     for folder in ADV_FOLDERS:
-        rels += [folder + '/' + f for f in md_files(src, folder) if not split_fm(read(src, folder + '/' + f))[0].get('redirect_to')]
-    return sorted(r for r in set(rels) if r not in SE_SKIP)
+        rels += [folder + '/' + f for f in md_files(src, folder)]
+    for name in SECTIONS:
+        if os.path.exists(os.path.join(src, name + '.md')):
+            rels.append(name + '.md')
+        for root, _, files in os.walk(os.path.join(src, name)):
+            rels += [os.path.relpath(os.path.join(root, f), src) for f in files if f.endswith('.md')]
+    rels = [r for r in rels if not r.startswith(SKIP_DIRS)]
+    # a page that only redirects (to Discord, the store, a Google Drive folder) stays the link it is
+    return sorted(r for r in set(rels) if r not in SE_SKIP and r not in REDIRECTS)
 
 
 def is_adventure(rel):
     return os.path.dirname(rel) in ADV_FOLDERS
 
 
+def older(rel):
+    """A page from before the rest of the site came in: its id is already linked to, so it never changes."""
+    return is_adventure(rel) or rel.startswith('second-edition')
+
+
 def group_of(rel):
     if is_adventure(rel):
         return ADV_FOLDERS[os.path.dirname(rel)]
     parts = rel.split('/')
+    top = parts[0].removesuffix('.md')
+    if top in SECTIONS:
+        return SECTIONS[top]
     return GROUPS[parts[1]] if len(parts) == 3 and parts[1] in GROUPS else 'index'
 
 
 def parent_of(rel):
-    parts = rel.split('/')
-    if rel == SE_INDEX or is_adventure(rel):
+    """The page this one sits under, or None; the caller drops a parent that isn't a page here."""
+    if rel == SE_INDEX or is_adventure(rel) or '/' not in rel:
         return None  # an adventure's parent is the Adventures catalog, which isn't a page
-    if len(parts) == 2:
-        return SE_INDEX
-    return 'second-edition/%s.md' % parts[1]
+    return os.path.dirname(rel) + '.md'
 
 
 def is_title(heading, title):
@@ -729,8 +824,7 @@ def md_sections(text, adventure=False):
     one, and a conversion that starts at ### or #### moves up."""
     fm, body = split_fm(text)
     shift = 0
-    if adventure:
-        body = fences(map_blocks(body))
+    body = fences(map_blocks(body))
     body = '\n'.join(l for l in body.splitlines() if not re.fullmatch(r'\s*\{:.*\}\s*', l))  # kramdown attribute lines
     h1 = re.search(r'^# (.+?)\s*$', body, re.M)
     first2 = re.search(r'^##', body, re.M)
@@ -740,6 +834,8 @@ def md_sections(text, adventure=False):
         top = min((len(m) for m in re.findall(r'^(#{1,6}) ', body, re.M)), default=2)
         shift = 2 - top
         body = re.sub(r'^(#{1,6}) ', lambda m: '#' * min(len(m.group(1)) + shift, 6) + ' ', body, flags=re.M)
+    if not adventure:
+        body = re.sub(r'^# ', '## ', body, flags=re.M)  # a second H1 (the SRD's Rules Summary) is a section of its own
     parts = re.split(r'^(#{2,3}) (.+?)\s*$', body, flags=re.M)
     title = fm.get('title') or (h1.group(1) if h1 else 'Untitled')
     return plain(heading_title(title)[0]), parts[0].strip(), [(len(parts[i]), parts[i + 1], parts[i + 2]) for i in range(1, len(parts), 3)], shift
@@ -859,6 +955,35 @@ def render_page(plan, special=False):
     return {'title': plan['title'], 'intro': intro, 'sections': sections}
 
 
+def nav_key(p):
+    """JTD's order for siblings: nav_order, then title."""
+    return (p['order'] is None, p['order'] or 0, p['title'].lower())
+
+
+def section_trees(pages):
+    """Each section of the rest of the site: {group: {title, root: its first page, tree: {page id: its children's ids, in JTD's order}}}.
+    The sidebar, the breadcrumbs and the previous / next run all read it."""
+    out = {}
+    for g in dict.fromkeys(SECTIONS.values()):
+        mine = [p for p in pages.values() if p['group'] == g]
+        top = [p for p in mine if p['parent'] not in {q['id'] for q in mine}]
+        if not top:
+            continue
+        kids = lambda pid: [c['id'] for c in sorted(mine, key=nav_key) if c['parent'] == pid]
+        tree = {p['id']: kids(p['id']) for p in mine}
+        if g in HUBS:
+            out[g] = {'title': HUBS[g].title(), 'root': HUBS[g], 'tree': dict(tree, **{HUBS[g]: [p['id'] for p in sorted(top, key=nav_key)]})}
+            continue
+        first = min(top, key=lambda p: (p['path'].count('/'), p['path']))  # first-edition.md, not a page under it
+        out[g] = {'title': first['title'], 'root': first['id'], 'tree': tree}
+    return out
+
+
+def flat(tree, root, pages):
+    """A section's page ids, depth first from its root: the sidebar's order."""
+    return ([root] if root in pages else []) + [i for kid in tree[root] for i in flat(tree, kid, pages)]
+
+
 def page_source(site, page, anchors, paths, others, fallback=None, strict=False, hotlink=False):
     SOURCE.update(site=site, page=page, anchors=anchors, fallback=fallback or {}, paths=paths, others=others, strict=strict, hotlink=hotlink, warn=[])
 
@@ -868,8 +993,9 @@ def page_html(page):
 
 
 def site_pages(src, reserved):
-    """Every Second Edition page and every readable adventure, in English, keyed by its id. Also fills ROUTES.
+    """Every page the prototype opens (Second Edition, the adventures and the rest of the site), in English, keyed by its id. Also fills ROUTES.
     reserved: the template's own ids."""
+    load_redirects(src)
     rels = page_rels(src)
     texts = {rel: read(src, rel) for rel in rels}
     bases = {}
@@ -877,30 +1003,42 @@ def site_pages(src, reserved):
         bases.setdefault(os.path.basename(rel), []).append(rel)
     for rel in rels:
         base = os.path.basename(rel)[:-3]
-        # a clash between an adventure and a rules page renames the adventure; between two rules pages, both
-        clash = [r for r in bases[base + '.md'] if r != rel and (is_adventure(r) == is_adventure(rel) or is_adventure(rel))]
-        ROUTES[rel] = 'rules' if rel == CORE_REL else ('%s-%s' % (group_of(rel), base) if clash else base)
+        # a Second Edition page or an adventure keeps its id unless it clashes with its own kind (an adventure also with a
+        # rules page); a page from the rest of the site takes its group as a prefix when anything else shares its name
+        clash = [r for r in bases[base + '.md'] if r != rel and (not older(rel) or (older(r) and (is_adventure(r) == is_adventure(rel) or is_adventure(rel))))]
+        # two pages of one section share a name: their folder tells them apart
+        sub = os.path.basename(os.path.dirname(rel)) + '-' if rel.count('/') > 1 and any(group_of(r) == group_of(rel) for r in clash) else ''
+        ROUTES[rel] = 'rules' if rel == CORE_REL else ('%s-%s%s' % (group_of(rel), sub, base) if clash or base == 'rules' else base)  # 'rules' is Core Rules' id
     prefix = lambda rel: 'core' if rel == CORE_REL else ROUTES[rel]
     plans = {rel: plan_page(texts[rel], prefix(rel), adventure=is_adventure(rel)) for rel in rels}
     # every id is a hash route: none may repeat across pages, or clash with the template's own ids
     owner = {}
     for rel in rels:
         for i in [ROUTES[rel]] + [x for s in plans[rel]['secs'] for x in [s[3]] + s[4]]:
-            clash = owner.get(i) or ('the template' if i in reserved or i == 'adventures' or re.match(r'(home|res|m|adv)-', i) else None)
-            if clash and clash != rel:
-                die('id %r from %s clashes with %s' % (i, rel, clash))
+            other = owner.get(i) or ('the template' if i in reserved or i == 'adventures' or re.match(r'(home|res|m|adv)-', i) else None)
+            if other and other != rel:
+                die('id %r from %s clashes with %s' % (i, rel, other))
             owner[i] = rel
     paths = {site_path(url_of(rel)): ROUTES[rel] for rel in rels}
+    # addresses the Markdown still links to that the site no longer has, or that are a view here rather than a page
+    for old, new in (('/first-edition/example-of-play/example-of-play', ROUTES['first-edition/example-of-play.md']),
+                     ('/hacks/hexcrawl-procedures', ROUTES['hacks/yet-another-hexcrawl-procedures.md']), ('/hacks/third-party', ROUTES['third-party.md']),
+                     ('/adventures/conversions', 'adventures?g=conversions'), ('/adventures/originals', 'adventures?g=originals'), ('/resources', 'resources'), ('/', 'home')):
+        paths.setdefault(old, new)
+    for rel in rels:  # the old addresses a page answers to (redirect_from: /cairn-srd/); a real page's own path wins
+        old = split_fm(texts[rel])[0].get('redirect_from', '')
+        if old.startswith('/'):
+            paths.setdefault(site_path(old), ROUTES[rel])
     others = {ROUTES[rel]: plans[rel]['anchors'] for rel in rels}
     pages, warns = {}, []
     for rel in rels:
         fm = split_fm(texts[rel])[0]
-        page_source(SITE, url_of(rel), plans[rel]['anchors'], paths, others, hotlink=is_adventure(rel))
+        page_source(SITE, url_of(rel), plans[rel]['anchors'], paths, others, hotlink=not older(rel) or is_adventure(rel))
         p = render_page(plans[rel], special=rel == CORE_REL)
         warns += ['%s: %s' % (rel, w) for w in SOURCE['warn']]
         if is_adventure(rel):
             warns += ['%s: raw Markdown %r left in the page' % (rel, x) for x in leaks(p)]
-        pages[ROUTES[rel]] = dict(p, id=ROUTES[rel], path=rel, group=group_of(rel), parent=ROUTES.get(parent_of(rel)) if parent_of(rel) else None,
+        pages[ROUTES[rel]] = dict(p, id=ROUTES[rel], path=rel, group=group_of(rel), lang=LANG_PAGES.get(rel, ''), parent=ROUTES.get(parent_of(rel)),
                                   order=int(fm['nav_order']) if fm.get('nav_order', '').isdigit() else None,
                                   toc=fm.get('has_children') == 'true' and fm.get('has_toc') != 'false', edit=GITHUB_BLOB + rel, url=url_of(rel), children=[],
                                   **({'srcheads': src_heads(plans[rel])} if is_adventure(rel) else {}))
@@ -910,10 +1048,16 @@ def site_pages(src, reserved):
         if p['toc']:
             kids = sorted((c for c in pages.values() if c['parent'] == p['id']), key=lambda c: (c['order'] is None, c['order'] or 0, c['title'].lower()))
             p['children'] = [{'id': c['id'], 'label': c['title']} for c in kids]
-            if p['path'] == 'second-edition/tools.md':
-                p['children'].append({'href': url_of(CHARGEN_REL), 'label': title_of(src, CHARGEN_REL)})
+            gen, label = GENERATORS.get(p['path'], (None, None))  # the interactive generator stays on the live site, listed with its siblings
+            if gen:
+                p['children'].append({'href': url_of(gen), 'label': label or title_of(src, gen)})
+    unlinked = collections.Counter(w.split(': ')[0] for w in warns if w.endswith('points at no heading'))
+    noisy = {rel for rel, n in unlinked.items() if n > 5}  # the SRD and More Spellbooks link every spell to a heading that isn't there (the live site's links go nowhere too)
     for w in warns:
-        print('pages: ' + w, file=sys.stderr)
+        if not (w.endswith('points at no heading') and w.split(': ')[0] in noisy):
+            print('pages: ' + w, file=sys.stderr)
+    for rel in noisy:
+        print('pages: %s: %d links point at no heading (upstream: their text stays, the link is dropped)' % (rel, unlinked[rel]), file=sys.stderr)
     return pages, plans, texts
 
 
@@ -941,7 +1085,6 @@ def reactions(text):
 # published from a repo; that repo is the translation used here. Forks named cairn-<code> (the localization guide's
 # naming) are added as unofficial for languages with no stub. See NOTES.md, Translations.
 CORE_REL = 'second-edition/players-guide/core-rules.md'
-CC_REL = 'second-edition/players-guide/character-creation.md'
 L10N_STUBS = 'localization/second-edition'
 # each language's own name; also the list of codes a cairn-<code> fork may use
 LANG_NAMES = {'fi': 'Suomi', 'zh': '中文', 'ru': 'Русский', 'pt-BR': 'Português (Brasil)', 'pt': 'Português', 'es': 'Español',
@@ -1312,6 +1455,285 @@ def parity(pages, l10n):
     return diffs
 
 
+# ---------- the character builder's data (Character Creation, "Roll a Character right now!")
+# Everything comes from the Markdown: the Backgrounds d20, each background's names, gear and two d6 tables, the traits,
+# bonds and omens. Each table row also gets its effects on the character (items, gold, extra rolls), drafted by a
+# cautious extractor and corrected by hand in BUILDER_FIXES; --builder-report prints them all for reading through.
+CC_REL = 'second-edition/players-guide/character-creation.md'
+SHEETS = {'landscape': os.path.join(HERE, 'assets', 'sheets', 'landscape.pdf'), 'portrait': os.path.join(HERE, 'assets', 'sheets', 'portrait.pdf')}
+SHEET_FIELDS = {
+    'landscape': ['Name', 'Background', 'STR_CURRENT', 'STR_MAX', 'DEX_CURRENT', 'DEX_MAX', 'WIL_CURRENT', 'WIL_MAX', 'HP_CURRENT', 'HP_MAX',
+                  'Armor', 'Gold', 'Notes'] + ['Slot.0.0.%d' % i for i in range(10)] + ['Petty Items.0.%d' % i for i in range(7)]
+                 + ['Traits1.%d' % i for i in range(10)] + ['Bonds.0.%d' % i for i in range(4)] + ['Omens.0.%d' % i for i in range(4)],
+    'portrait': ['Name', 'Background', 'STR_CURRENT', 'STR_MAX', 'DEX_CURRENT', 'DEX_MAX', 'WIL_CURRENT', 'WIL_MAX', 'HP_CURRENT', 'HP_MAX',
+                 'Armor', 'Gold', 'Notes'] + ['Slot.%d' % i for i in range(10)] + ['Petty Items.%d' % i for i in range(5)]
+                + ['Traits%d' % i for i in range(1, 5)] + ['Bonds.%d' % i for i in range(3)] + ['Omens.%d' % i for i in range(3)],
+}
+# bold names that aren't things a character carries (people, places, orders, rules)
+NOT_ITEMS = {'war', 'falconry', 'recharge', 'fatigue', 'critical damage', 'gate', 'lord of winter', 'dawn brigade', 'moss witch',
+             'single item', 'specialty', 'omens', 'bonds', 'str', 'dex', 'wil', 'hp', 'deprived', 'panicked', 'oak lord', "oak lord's",
+             'warden', 'armor', 'gold', 'gp', 'lead', 'fake', 'enthralled'}
+# corrections a person makes to the extractor's draft, keyed background/table/row (table 0 or 1, row 1-6), bond/N or
+# quote/background. Each replaces those fields of the row's effects.
+I = lambda name, **tags: dict({'name': name}, **tags)
+BUILDER_FIXES = {
+    # body changes, knowledge and companions: notes, not slots
+    'aurifex/1/6': {'items': []},                                   # the Homunculus is a companion (3 HP, 4 STR...)
+    'barber-surgeon/0/1': {'items': []}, 'barber-surgeon/0/4': {'items': []}, 'barber-surgeon/0/6': {'items': []},
+    'barber-surgeon/0/2': {'items': [I('Oil Can (6 uses)')]},
+    'barber-surgeon/0/5': {'items': [], 'armor': 1},                # toughened skin: armor without an item
+    'beast-handler/1/3': {'items': []},
+    'bonekeeper/0/2': {'items': []}, 'bonekeeper/0/4': {'items': []},  # the wagon and donkey carry; they aren't carried
+    'bonekeeper/0/5': {'items': [I('Detect Magic Spellbook')]},
+    'fieldwarden/0/4': {'items': [I('Diseased Crop (6 uses)')]}, 'fieldwarden/0/5': {'items': []},  # a Werewolf
+    'fletchwind/0/3': {'items': []},
+    # Fletchwind's bow comes from its second table; it fills the gear's "Bow (see table)"
+    'fletchwind/1/1': {'items': [I('Western Yew bow (d6)', bulky=True)], 'bow': True},
+    'fletchwind/1/2': {'items': [I('Sessile Oak bow (d6)', bulky=True)], 'bow': True},
+    'fletchwind/1/3': {'items': [I('Stone Pine bow (d6)', bulky=True)], 'bow': True},
+    'fletchwind/1/4': {'items': [I('White Ash bow (d6)', bulky=True)], 'bow': True},  # its +1 Armor is only in place of a shield
+    'fletchwind/1/5': {'items': [I('Striped Bamboo bow (d6)')], 'bow': True},
+    'fletchwind/1/6': {'items': [I('Wych Elm bow (d6)', bulky=True)], 'bow': True},
+    'foundling/0/5': {'items': [I('Storybook'), I('Dagger (d6)')]},
+    'foundling/0/6': {'items': [I("Monk's Habit", petty=True), I('Control Plants Spellbook')]},
+    'greenwise/0/5': {'items': [I('Warrant for your arrest', petty=True)], 'gold': 100},
+    'half-witch/0/3': {'items': []}, 'half-witch/0/4': {'items': []}, 'half-witch/0/6': {'items': []},  # a nightmare, a familiar, a name
+    'half-witch/1/4': {'items': [I('Stonetree Sap')]},             # its armor is temporary
+    'hexenbane/0/3': {'items': [I('Short Sword (d8)'), I('Chainmail', armor=2, bulky=True)]},
+    'hexenbane/1/1': {'items': []}, 'hexenbane/1/3': {'items': []}, 'hexenbane/1/4': {'items': []},
+    'hexenbane/1/2': {'items': [I('Disassemble Spellbook')]},
+    'hexenbane/1/6': {'items': [], 'hp': None},                     # Valor's +d4 HP only lasts the combat
+    'jongleur/0/2': {'items': [I('Read Mind Spellbook'), I('Warrant for your arrest', petty=True)]},
+    'jongleur/1/4': {'items': [I('Tragic Tales')]},
+    'kettlewright/0/1': {'items': [I('Wanted poster', petty=True)], 'gold': 40},
+    'kettlewright/0/5': {'items': [I('Long Sword (d10)', bulky=True), I('Gambeson', armor=1)], 'hp': '1d4'},
+    'kettlewright/0/6': {'items': [I('Crossbow (d8)', bulky=True), I('Saw (d6)')]},  # the donkey carries
+    'kettlewright/1/6': {'items': [I('Carrion Cat', bulky=True)]},
+    'marchguard/0/5': {'items': [I('Snare Trap'), I('Sketchbook')]},
+    'mountebank/0/6': {'items': [I('Auditory Illusion Spellbook'), I('Bundle of scarves')]},
+    'mountebank/1/5': {'items': [I('Cursed Sapphire')]},
+    'outrider/1/2': {'items': []}, 'outrider/1/6': {'items': []},  # mounts
+    'prowler/0/1': {'items': [I('Alchemical Limb (d8)', petty=True), I('Oil Can (6 uses)')]},
+    'rill-runner/1/3': {'items': []},
+    'scrivener/0/3': {'items': [I('A Treatise on the Abyss')]},
+    'bond/13': {'items': []}, 'bond/20': {'items': []},
+    # starting gear, by the item's name
+    'mountebank/gear/Cart': {'bulky': False},                       # bulky only when pulled
+    'half-witch/gear/Spellbook': {'name': 'Thicket Spellbook'},
+}
+
+
+def sheet_check():
+    """The sheets' form fields the builder fills must still be there (a field-name check; the browser does the filling)."""
+    try:
+        import fitz
+    except ImportError:
+        die('the character builder needs PyMuPDF to check the sheets (pip install pymupdf)')
+    for k, p in SHEETS.items():
+        if not os.path.isfile(p):
+            die('missing character sheet %s; copy the Fillable Letter PDF there' % p)
+        names = {w.field_name for page in fitz.open(p) for w in (page.widgets() or [])}
+        missing = [f for f in SHEET_FIELDS[k] if f not in names]
+        if missing:
+            die('the %s sheet has changed: no field %s' % (k, ', '.join(missing[:5])))
+
+
+def md_table(lines):
+    """A Markdown table's header cells and rows, cells stripped."""
+    rows = table_rows(lines)
+    return [plain(c) for c in rows[0]], rows[1:]
+
+
+def number(cell):
+    m = re.fullmatch(r'\s*\**\s*(\d+)\s*\**\s*', cell)
+    return int(m.group(1)) if m else None
+
+
+def pairs(lines):
+    """A d-table written as column pairs (| d20 | Background | d20 | Background |): {number: cell}."""
+    rows = md_table(lines)[1]
+    out = {}
+    for r in rows:
+        for i in range(0, len(r) - 1, 2):
+            n = number(r[i])
+            if n is not None:
+                out[n] = r[i + 1].strip()
+    return out
+
+
+def section_lines(body, title, level=2):
+    """The lines under a heading, up to the next heading of the same or a higher level."""
+    m = re.search(r'^%s %s\s*$' % ('#' * level, re.escape(title)), body, re.M)
+    if not m:
+        return []
+    rest = body[m.end():]
+    end = re.search(r'^#{1,%d} ' % level, rest, re.M)
+    return (rest[:end.start()] if end else rest).splitlines()
+
+
+TAG = re.compile(r'\(([^()]*)\)')
+
+
+def tags_of(t):
+    t = t.lower().replace('_', ' ')  # _bulky_ (underscores are word characters, so \b wouldn't see the word)
+    out = {}
+    if re.search(r'\bpetty\b', t):
+        out['petty'] = True
+    if re.search(r'\bbulky\b', t):
+        out['bulky'] = True
+    m = re.search(r'\+?(\d)\s*armor', t)
+    if m:
+        out['armor'] = int(m.group(1))
+    return out
+
+
+def effects(t):
+    """A drafted guess at what a table cell does to the character: {items, gold, hp, bonds, omen, marketplace}."""
+    fx = {'items': [], 'gold': 0, 'hp': None, 'bonds': 0, 'omen': False, 'marketplace': None}
+    # money first, so "an extra 20gp" isn't also an item; an item's own value ("(20gp)", "worth 200gp") isn't money
+    for m in re.finditer(r'(?:take|gain|receive|pocket|keep|start with|plus|and)\s+(?:an?\s+)?(?:extra\s+)?\**\s*(\d+)\s*gp\b(?!\s*(?:worth|of items))', t, re.I):
+        fx['gold'] += int(m.group(1))
+    for m in re.finditer(r'(?<![\w(])\+\s*(\d+)\s*gp\b', t, re.I):
+        fx['gold'] += int(m.group(1))
+    for m in re.finditer(r'\*\*([^*]*\b(?:money|purse|coins?|pouch|savings|winnings|wages|earnings)\b[^*]*?)\s*\((\d+)\s*gp\)\s*\*\*', t, re.I):
+        fx['gold'] += int(m.group(2))
+    t = re.sub(r'(?:an?\s+)?(?:extra\s+)?\**\s*\d+\s*gp\**(?!\s*(?:worth|of items))', ' ', t, flags=re.I) if fx['gold'] else t
+    if re.search(r'\+\s*\(?1?d4\)?\s*(?:max(?:imum)?\s+)?HP', t, re.I):
+        fx['hp'] = '1d4'
+    if re.search(r'second time on the \**\s*bonds', t, re.I):
+        fx['bonds'] = 1
+    if re.search(r'roll on the \**\s*omens', t, re.I):
+        fx['omen'] = True
+    m = re.search(r'(\d+)\s*gp\s*worth of items|from the \[?(?:gear|marketplace)', t, re.I)
+    if m:
+        fx['marketplace'] = ('%sgp of gear' % m.group(1)) if m.group(1) else 'gear'
+    # items: bold names, or "take/start with/carry a thing (tags)"; a cell's leading **Label**. is its heading
+    t2 = re.sub(r'^\s*\*\*[^*]+\*\*\s*[.:]', '', t)
+    seen = []
+    def add(name, tag_text):
+        name = re.sub(r'^(?:a|an|the|some|your|one|two|three)\s+', '', plain(name).strip(" ,.;:'"), flags=re.I)
+        if not name or name.lower() in NOT_ITEMS or len(name) > 40 or name.lower() in [s.lower() for s in seen]:
+            return
+        seen.append(name)
+        fx['items'].append(I(name, **tags_of(tag_text or '')))
+    for m in re.finditer(r'\*\*([^*]+)\*\*(\s*\(([^()]*)\))?', t2):
+        add(m.group(1), m.group(3))
+    for m in re.finditer(r'\b(?:take|start with|carry)\s+((?:an?|the|some)\s+)?([a-z][\w\' -]{1,40}?)\s*\(([^()]*)\)', t2, re.I):
+        add(m.group(2), m.group(3))
+    return fx
+
+
+def builder_background(src, n, row):
+    """Background n, from its row in Character Creation's table: its quote, names, starting gear and two d6 tables."""
+    m = re.search(r'\[([^\]]+)\]\(/second-edition/backgrounds/([\w-]+)/?\)', row)
+    name, slug_ = m.group(1), m.group(2)
+    rel = 'second-edition/backgrounds/%s.md' % slug_
+    body = split_fm(read(src, rel))[1]
+    quote = ' '.join(re.sub(r'^\s*>\s?', '', l) for l in body.splitlines() if l.strip().startswith('>')).strip()
+    names = [x.strip() for x in ' '.join(section_lines(body, 'Names')).split(',') if x.strip()]
+    gear = []
+    for l in section_lines(body, 'Starting Gear'):
+        if re.match(r'\s*[-*] ', l):
+            gear.append(re.sub(r'^\s*[-*] ', '', l).strip())
+        elif l.strip() and gear:
+            gear[-1] += ' ' + l.strip()  # a line that runs on (Half-Witch's spellbook, Greenwise's Ward)
+    items = []  # the gear as sheet items; "3d6 Gold Pieces" is the gold roll
+    for g in gear:
+        if re.match(r'\s*\d+d\d+\s+gold', g, re.I):
+            continue
+        nm = plain(re.split(r'\s*\(', g, maxsplit=1)[0])
+        it = I(nm, full=plain(g), **tags_of(' '.join(TAG.findall(g))))
+        if re.search(r'\(see table\)', g):
+            it['from_table'] = True
+        it.update(BUILDER_FIXES.get('%s/gear/%s' % (slug_, nm), {}))
+        items.append(it)
+    tables = []
+    for h in re.findall(r'^## (.+?)\s*$', body, re.M):
+        if h in ('Names', 'Starting Gear'):
+            continue
+        lines = [l for l in section_lines(body, h) if l.strip().startswith('|')]
+        if not lines:
+            continue
+        columns, rows = md_table(lines)
+        rows = [r for r in rows if number(r[0]) is not None]
+        kind = columns[1].lower() if len(columns) > 1 else 'result'
+        parsed = []
+        for r in rows:
+            cells = [c.strip() for c in r[1:]]
+            fx = effects(' '.join(cells))
+            if kind == 'item' and slug_ != 'rill-runner':  # the Item column names the item; its description carries the tags
+                lead = plain(cells[0])
+                tg = ' '.join(TAG.findall(cells[1])) if len(cells) > 1 else ''
+                fx['items'] = [I(lead, **tags_of(tg))] + [i for i in fx['items'] if i['name'].lower() != lead.lower()]
+            elif kind in ('mount', 'specialty', 'item'):  # a horse, a specialty or Rill Runner's talents: notes, not slots
+                fx['items'] = [i for i in fx['items'] if i['name'].lower() != plain(cells[0]).lower()]
+            parsed.append({'n': number(r[0]), 'cells': cells, 'text': plain(' — '.join(cells)), 'fx': fx})
+        tables.append({'title': plain(h), 'kind': kind, 'rows': parsed})
+    if len(names) != 10 or len(tables) != 2 or any(len(t['rows']) != 6 for t in tables):
+        die('character builder: %s no longer has 10 names and two d6 tables' % rel)
+    qfx = effects(quote)
+    return {'n': n, 'id': ROUTES.get(rel, slug_), 'name': name, 'quote': quote, 'names': names,
+            'items': items, 'tables': tables, 'fx': {k: qfx[k] for k in ('bonds', 'omen')}}
+
+
+def builder_data(src):
+    cc = split_fm(read(src, CC_REL))[1]
+    order = pairs([l for l in section_lines(cc, 'Backgrounds') if l.strip().startswith('|')])
+    if sorted(order) != list(range(1, 21)):
+        die('character builder: the Backgrounds table no longer has 20 rows')
+    out = {'backgrounds': [builder_background(src, n, order[n]) for n in range(1, 21)], 'traits': [], 'bonds': [], 'omens': []}
+    for t in ('Physique', 'Skin', 'Hair', 'Face', 'Speech', 'Clothing', 'Virtue', 'Vice'):
+        d = pairs([l for l in section_lines(cc, t, 3) if l.strip().startswith('|')])
+        if sorted(d) != list(range(1, 11)):
+            die('character builder: the %s table no longer has 10 entries' % t)
+        out['traits'].append({'name': t, 'values': [plain(d[i]) for i in range(1, 11)]})
+    for key, title in (('bonds', 'Bonds'), ('omens', 'Omens')):
+        d = pairs([l for l in section_lines(cc, title) if l.strip().startswith('|')])
+        if sorted(d) != list(range(1, 21)):
+            die('character builder: the %s table no longer has 20 rows' % title)
+        out[key] = [{'n': i, 'text': plain(d[i]), 'fx': effects(d[i]) if key == 'bonds' else {}} for i in range(1, 21)]
+    apply_builder_fixes(out)
+    # the sheet's cards, cut one by one from the fillable sheet: their bounds place the fields; the images load beside the page
+    cards = json.load(open(os.path.join(HERE, 'assets', 'cards', 'cards.json')))
+    for n in list(cards['cards']) + ['sheet', 'sheet-portrait']:
+        if not os.path.exists(os.path.join(HERE, 'assets', 'cards', n + '.webp')):
+            die('character builder: assets/cards/%s.webp is missing' % n)
+    out['cards'] = cards
+    return out
+
+
+def apply_builder_fixes(out):
+    """BUILDER_FIXES' corrections to the drafted effects of bonds, quotes and table rows."""
+    for key, fix in BUILDER_FIXES.items():
+        parts = key.split('/')
+        if len(parts) == 3 and parts[1] == 'gear':
+            continue  # applied in builder_background()
+        if parts[0] == 'bond':
+            out['bonds'][int(parts[1]) - 1]['fx'].update(fix)
+        elif parts[0] == 'quote':
+            next(b for b in out['backgrounds'] if b['id'] == parts[1])['fx'].update(fix)
+        else:
+            b = next(b for b in out['backgrounds'] if b['id'] == parts[0])
+            b['tables'][int(parts[1])]['rows'][int(parts[2]) - 1]['fx'].update(fix)
+
+
+def builder_report(data):
+    """Every row's final effects, for reading through (python3 -I build_prototype.py --builder-report)."""
+    def fmt(fx):
+        bits = ['%s%s' % (i['name'], ''.join(' [%s]' % k if k != 'armor' else ' [%d Armor]' % v for k, v in i.items() if k not in ('name', 'full'))) for i in fx.get('items', [])]
+        for k in ('gold', 'hp', 'bonds', 'omen', 'marketplace', 'armor', 'bow'):
+            if fx.get(k):
+                bits.append('%s=%s' % (k, fx[k]))
+        return '; '.join(bits) or '-'
+    for b in data['backgrounds']:
+        print('%2d %s  gear: %s  quote: %s' % (b['n'], b['name'], fmt({'items': b['items']}), fmt(b['fx'])))
+        for ti, t in enumerate(b['tables']):
+            for r in t['rows']:
+                print('   %s/%d/%d [%s] %s' % (b['id'], ti, r['n'], t['kind'], fmt(r['fx'])))
+    for r in data['bonds']:
+        print('   bond/%d %s' % (r['n'], fmt(r['fx'])))
+
+
 def chapters(src, folder):
     items = [link(src, folder + '/' + f) for f in md_files(src, folder)]
     return sorted(items, key=lambda c: c['label'].lower())  # JTD orders untitled-order siblings by title
@@ -1354,7 +1776,7 @@ def monsters(src):
             die('unexpected stat line in %s: %r' % (rel, stats))
         attack = sm.group(2).strip()
         # as [label, number] pairs in the source's order (HP, Armor, STR, DEX, WIL), so the card can size them apart
-        stats = [[k.upper(), v] for v, k in re.findall(r'(\d+)\s+(HP|Armor|STR|DEX|WIL)', sm.group(1))]
+        stats = [[k, v] for v, k in re.findall(r'(\d+)\s+(HP|Armor|STR|DEX|WIL)', sm.group(1))]
         out.append({'name': h.group(1).strip(), 'stats': stats,
                     'attack': inline(attack[:1].upper() + attack[1:]), 'bullets': bullets, 'href': url_of(rel), 'edit': GITHUB_BLOB + rel})
     return sorted(out, key=lambda m: m['name'].lower())
@@ -1424,6 +1846,7 @@ def main():
     ap.add_argument('--refresh', action='store_true', help='re-clone both repos and re-discover the translations')
     ap.add_argument('--translations', action='store_true', help='re-discover the translations from the checkout as it is')
     ap.add_argument('--parity', action='store_true', help='compare every page with the live site')
+    ap.add_argument('--builder-report', action='store_true', help="print every character builder row's effects")
     args = ap.parse_args()
     src, cache, out = args.src, args.cache, args.out
     fetch(src, args.refresh)
@@ -1435,6 +1858,10 @@ def main():
     if not posts:
         print('adventures: no Scrivener checkout; the catalog lists the Cairn repo pages only', file=sys.stderr)
     advs = adventures(src, posts)
+    builder = builder_data(src)
+    sheet_check()
+    if args.builder_report:
+        builder_report(builder)
     if args.refresh or args.translations:
         try:
             discover_translations(src, cache, {r: t for r, t in texts.items() if r.startswith('second-edition/') or r == SE_INDEX})
@@ -1469,12 +1896,15 @@ def main():
         },
         'pg': pg, 'wg_parts': parts, 'bg': bg,
         'pages': pages,
+        'builder': builder,
+        'sections': section_trees(pages),
         'l10n': translations(cache, pages, plans),
         # previous / next runs within a group, in the sidebar's order
         'order': {'pg': [ROUTES[c['path']] for c in pg], 'wg': [ROUTES[c['path']] for p in parts for c in p['items']],
                   'bg': [ROUTES[c['path']] for c in bg], 'index': ['second-edition'] + [c['id'] for c in pages['second-edition']['children']],
-                  **{g: [p['id'] for p in sorted((p for p in pages.values() if p['group'] == g), key=lambda p: (p['order'] is None, p['order'] or 0, p['title'].lower()))]
-                     for g in ('fp', 'conv')}},
+                  **{g: [p['id'] for p in sorted((p for p in pages.values() if p['group'] == g), key=nav_key)]
+                     for g in ('fp', 'conv')},
+                  **{g: flat(s['tree'], s['root'], pages) for g, s in section_trees(pages).items()}},
         'monsters': mons,
         'links': {
             'players': L('second-edition/players-guide.md'),

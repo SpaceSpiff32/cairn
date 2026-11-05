@@ -13,6 +13,7 @@
   --accent: #f2c488; --accent-strong: #f7d6a8; --on-accent: #26252b; --border: #45444d; --border-strong: #8c8b96;
   --focus: #f2c488; --shadow: 0 1px 0 rgba(0,0,0,.25); --shadow-pop: 0 12px 30px rgba(0,0,0,.35);
   --h1: clamp(2.2rem, 5vw, 3.4rem);
+  --ok: #6cc479; --err: #f07a6a;  /* notice bars and icons: 6.4:1 and 5:1 on --surface */
   --dice: #41697d;  /* sampled from the hero art (the tree's teal); changed by the tray's Colour choice */
   color-scheme: dark;
 }
@@ -81,38 +82,97 @@ li + li { margin-top: .25em; }
 .btn-icon:hover { background: var(--surface-2); color: var(--heading); }
 .btn-icon svg { width: 20px; height: 20px; }
 .menu-btn { display: none; }
-/* ---------- dice roller: a pill at the header's far right opens a tray; dice-box rolls 3D dice over the page */
+/* ---------- dice roller: a pill at the header's far right opens a drawer from the right; dice-box rolls 3D dice over the page */
 .dice-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 12px; border: 1.5px solid var(--dice); border-radius: 999px; background: none; color: var(--heading); font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .dice-pill:hover, :root:has(.dice-tray:popover-open) .dice-pill { background: color-mix(in srgb, var(--dice) 24%, transparent); }
 .dice-pill svg { width: 20px; height: 20px; flex: none; }
-.dice-tray { position: fixed; inset: auto; margin: 0; width: 360px; max-width: calc(100vw - 32px); overflow: auto; padding: 16px; background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 14px 34px rgba(0,0,0,.5); }
-.dice-tray h2 { font-size: 1.2rem; margin: 0 0 12px; }
-.dice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; list-style: none; margin: 0; padding: 0; }
-.dice-grid li { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.die-add { position: relative; width: 100%; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; cursor: pointer; }
-.die-add:hover { border-color: var(--dice); }
-.die-add svg { width: 60px; height: 60px; }
+.dice-tray { position: fixed; inset: 0 0 0 auto; margin: 0; width: 360px; max-width: 100vw; height: auto; padding: 0; overflow: hidden; background: var(--surface); color: var(--text); border: 0; border-left: 1px solid var(--border-strong); box-shadow: -14px 0 34px rgba(0,0,0,.4); }  /* a drawer: the window's full height, against its right edge, over the header (the Dice pill, under it, opens it again) */
+.dice-tray:popover-open { display: flex; flex-direction: column; }
+.dice-tray [hidden] { display: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+  .dice-tray { transition: translate .2s ease, display .2s allow-discrete, overlay .2s allow-discrete; translate: 100% 0; }
+  .dice-tray:popover-open { translate: 0 0; }
+  @starting-style { .dice-tray:popover-open { translate: 100% 0; } }
+}
+/* the head, body and foot follow the character creation drawer's (.cb-drawer-head, .cb-drawer-body, .cb-bar) */
+.dice-head { flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 8px 10px; background: var(--surface); border-bottom: 1px solid var(--border-strong); }
+.dice-head h2 { margin: 0; font-size: 1.2rem; text-align: center; }
+.dice-tray[data-view="rolls"] .i-back, .dice-tray[data-view="settings"] .i-gear { display: none; }
+.dice-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; }
+.dice-body:focus-visible { outline-offset: -3px; }
+.dice-foot { flex: none; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); display: grid; gap: 8px; background: var(--surface); border-top: 3px solid var(--dice); box-shadow: 0 -8px 20px rgba(0,0,0,.3); }
+.dice-switch { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: .95rem; cursor: pointer; }
+.dice-switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.dice-switch-ui { position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--border-strong); }
+.dice-switch-ui::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--heading); }
+.dice-switch input:checked + .dice-switch-ui { background: var(--accent); }
+.dice-switch input:checked + .dice-switch-ui::after { left: 21px; background: var(--on-accent); }
+.dice-switch input:focus-visible + .dice-switch-ui { outline: 3px solid var(--focus); outline-offset: 2px; }
+.dice-switch:has(input:disabled) { opacity: .6; cursor: not-allowed; }
+.dice-why { margin: 0 0 12px; }
+.dice-chat { margin-top: auto; }  /* a short history sits at the foot, like a chat */
+.dice-chat ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.dice-empty { margin: 0; text-align: center; }
+.dice-msg { margin: 0; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; background: var(--surface-2); border-left: 4px solid var(--dice); border-radius: 6px; }
+.dice-msg > * { grid-column: 1; overflow-wrap: anywhere; }
+.dice-msg .what { color: var(--heading); font-weight: 700; }
+.dice-msg .total { grid-column: 2; grid-row: 1 / span 3; align-self: center; padding-right: 22px; font-size: 2.6rem; font-weight: 700; color: var(--heading); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.dice-msg .note, .dice-msg .time { color: var(--muted); font-size: .85rem; }
+.dice-settings { display: grid; gap: 20px; align-content: start; }
+.dice-settings h3 { margin: 0 0 6px; font-size: 1rem; }
+.dice-settings p { margin: 0; }
+.dice-linkbtn { min-height: 44px; padding: 0 4px; background: none; border: 0; color: var(--accent); font: inherit; font-size: .95rem; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
+.dice-linkbtn:hover { color: var(--accent-strong); }
+/* a die in the text rolls itself, as on cairnrpg.com; a roll table marks the row it lands on */
+button.roll { display: inline; min-height: 0; padding: 0 1px; margin: 0; background: none; border: 0; border-bottom: 1.5px dashed var(--dice); border-radius: 0; color: inherit; font: inherit; line-height: inherit; cursor: pointer; }
+button.roll:hover { color: var(--heading); border-bottom-style: solid; }
+tr.hit > * { background: color-mix(in srgb, var(--dice) 30%, transparent); }
+tr.hit > :first-child { box-shadow: inset 4px 0 0 var(--dice); }
+.dice-poolrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dice-poolrow .dice-linkbtn { min-height: 28px; }
+.dice-pool { margin: 0; color: var(--heading); font-weight: 700; }
+.dice-poolrow:has(.dice-pool:empty) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }  /* nothing picked: the line is for screen readers only */
+.dice-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; list-style: none; margin: 0; padding: 0; }
+.dice-grid li { position: relative; margin: 0; }
+.die-add { width: 100%; min-height: 56px; display: grid; place-items: center; padding: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; }
+.die-add:hover, .dice-grid li.is-editing .die-add { border-color: var(--dice); }
+.die-add svg { width: min(46px, 100%); height: auto; aspect-ratio: 1; }
 .die-add .shape { fill: var(--dice); }
 .die-add .num { fill: #fff; font: 700 17px/1 'Alegreya', Georgia, serif; text-anchor: middle; dominant-baseline: central; }
-.die-count { position: absolute; top: 4px; right: 4px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: .85rem; }
-.die-count[hidden] { display: none; }
-.die-remove { min-width: 44px; min-height: 28px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 4px; background: none; color: var(--text); font: inherit; font-weight: 700; line-height: 1; cursor: pointer; }
-.die-remove:hover { background: var(--surface-2); color: var(--heading); }
-.die-remove.is-zero { visibility: hidden; }
-.dice-pool { margin: 12px 0 0; color: var(--muted); }
-.dice-actions { display: flex; gap: 8px; margin-top: 10px; }
-.dice-actions .btn { flex: 1; min-height: 44px; padding: 0 12px; }
-.dice-actions .btn:disabled { opacity: .5; cursor: not-allowed; }
-.dice-results { margin-top: 12px; min-height: 1.5em; }
-.dice-results p { margin: 0; }
+.die-qty { position: absolute; top: -9px; right: -5px; z-index: 2; display: flex; align-items: center; height: 28px; border: 2px solid var(--surface); border-radius: 14px; background: var(--accent); color: var(--on-accent); }
+/* the gold count is one control with the stepper: tapping it, or a die, grows it into −, the count and + (a bin at 1), as when
+   adding an item to a cart; it folds back into the count. The − and + have no width until it's open, so the pill grows out of the
+   circle (the first die's from its left edge, so it stays inside the drawer) */
+.die-count { min-width: 24px; height: 24px; padding: 0 5px; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; font-size: .85rem; font-variant-numeric: tabular-nums; cursor: pointer; }
+.die-minus, .die-plus { display: grid; place-items: center; width: 0; height: 36px; padding: 0; overflow: hidden; visibility: hidden; background: none; border: 0; border-radius: 50%; color: inherit; cursor: pointer; }
+.dice-grid li:first-child .die-qty { right: auto; left: calc(100% - 23px); }
+.dice-grid li.is-editing .die-qty { top: -15px; height: 40px; border-color: var(--accent); background: var(--surface); color: var(--heading); box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+.dice-grid li:first-child.is-editing .die-qty { left: 0; }
+.dice-grid li.is-editing .die-minus, .dice-grid li.is-editing .die-plus { width: 36px; visibility: visible; }
+.dice-grid li.is-editing .die-count { min-width: 28px; height: 36px; font-size: 1.05rem; }
+.die-minus:hover, .die-plus:hover { background: var(--surface-2); }
+.die-plus[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+.die-qty svg { width: 18px; height: 18px; }
+.die-minus .i-trash, .die-minus[data-one] .i-minus { display: none; }
+.die-minus[data-one] .i-trash { display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  .die-qty { transition: top .18s ease, left .18s ease, height .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+  .die-count { transition: min-width .18s ease, height .18s ease, font-size .18s ease; }
+  .die-minus, .die-plus { transition: width .18s ease, visibility 0s .18s; }  /* hidden only once it has shrunk */
+  .dice-grid li.is-editing .die-minus, .dice-grid li.is-editing .die-plus { transition: width .18s ease, visibility 0s; }
+}
+.dice-compose { display: flex; gap: 8px; }
+.dice-compose input { flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 999px; font: inherit; font-size: 16px; }
+.dice-compose input[aria-invalid="true"] { border-color: var(--heading); border-width: 2px; }
+.dice-compose .btn { min-height: 44px; padding: 0 20px; }
+.dice-compose .btn:disabled { opacity: .5; cursor: not-allowed; }
+.dice-err { margin: 0; color: var(--heading); font-size: .95rem; }
 .dice-label, .dice-note { color: var(--muted); font-size: .9rem; }
-.dice-results .dice-total { font-size: 1.6rem; font-weight: 700; color: var(--heading); line-height: 1.2; }
-.dice-results .dice-note { margin-top: 4px; }
-.dice-colours { border: 0; border-top: 1px solid var(--border); margin: 14px 0 0; padding: 12px 0 0; min-width: 0; }
+.dice-colours { border: 0; margin: 0; padding: 0; min-width: 0; }
 .dice-colours legend { padding: 0; margin-bottom: 8px; font-weight: 700; color: var(--heading); font-size: .95rem; }
 .dice-colours .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .dice-colours label { position: relative; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: .92rem; }
-.dice-colours input, .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.dice-colours input, .seg input, .cb-switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .dice-colours .sw { width: 18px; height: 18px; border-radius: 50%; flex: none; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
 .dice-colours input:checked ~ .sw { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--heading); }
 .dice-colours label:has(input:checked) { border-color: var(--heading); color: var(--heading); }
@@ -122,7 +182,27 @@ li + li { margin-top: .25em; }
 .dice-toast p { margin: 0; }
 .dice-toast .dice-total { font-size: 1.4rem; font-weight: 700; color: var(--heading); line-height: 1.2; }
 #diceStage { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+@media (min-width: 760px) { :root:has(.dice-tray:popover-open) #diceStage { right: 360px; } }  /* the dice land beside the open drawer */
 #diceStage canvas { width: 100%; height: 100%; display: block; }
+#diceStage.dice-fade { opacity: 0; transition: opacity .4s ease-out; }
+
+/* ---------- notices: an action's result (success, error) slides down from the top */
+/* a manual popover, so it can sit above the dice drawer and the builder's modal, which are in the top layer too */
+.notices { position: fixed; inset: 16px auto auto 50%; translate: -50% 0; width: min(420px, calc(100vw - 32px)); margin: 0; padding: 0; border: 0; background: none; overflow: visible; display: grid; gap: 8px; }
+.notices:not(:popover-open) { display: none; }
+.notice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; background: var(--surface); border: 1px solid var(--border-strong); border-left: 4px solid var(--c); border-radius: 6px; box-shadow: 0 10px 26px rgba(0,0,0,.45); color: var(--heading); }
+.notice[data-kind="success"] { --c: var(--ok); }
+.notice[data-kind="error"] { --c: var(--err); }
+.notice[data-kind="info"] { --c: var(--accent); }
+.notice-icon { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--c); color: var(--on-accent); font-weight: 700; font-size: .85rem; line-height: 1; }
+.notice p { margin: 0; overflow-wrap: anywhere; }
+.notice { transition: opacity .2s ease, translate .2s ease-out; }
+@starting-style { .notice { opacity: 0; } }
+.notice.is-leaving { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style { .notice { translate: 0 -120%; } }
+  .notice.is-leaving { translate: 0 -120%; }
+}
 
 /* ---------- buttons, cards, tiles */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 22px; border-radius: 4px; font: inherit; font-size: 1rem; font-weight: 700; text-decoration: none; border: 2px solid var(--accent); }
@@ -165,11 +245,24 @@ a.tile:hover h3 { color: var(--accent); }
   .frame-tile { border: 2px solid CanvasText; border-image: none; padding: 49px; }
   .frame-tile:hover, .frame-tile:focus-visible { border-color: Highlight; }
   /* states drawn only with a fill or a box-shadow, which forced colours remove */
-  .seg input:checked + span, .az a[aria-current="true"] { background: Highlight; color: HighlightText; border-color: Highlight; }
+  .seg input:checked + span, .cb-swap button[aria-pressed="true"], .az a[aria-current="true"] { background: Highlight; color: HighlightText; border-color: Highlight; }
   .primary-nav a[aria-current], .toc a.active, .section-nav a[aria-current="page"] { text-decoration: underline 3px; }
   .seg input:checked:focus-visible + span { outline-color: HighlightText; }
   .dice-colours label:has(input:checked) { border: 2px solid Highlight; }
   .dice-colours .sw { forced-color-adjust: none; }
+  .dice-switch-ui { border: 2px solid ButtonText; }
+  .dice-switch input:checked + .dice-switch-ui { background: Highlight; }
+  .dice-switch-ui::after { background: ButtonText; }
+  .dice-switch input:checked + .dice-switch-ui::after { background: HighlightText; }
+  button.roll { color: LinkText; border-bottom-color: LinkText; }
+  .dice-grid li.is-editing .die-add { outline: 2px solid Highlight; }
+  tr.hit > * { outline: 2px solid Highlight; outline-offset: -2px; }
+  .cb-card { forced-color-adjust: none; }  /* a card is a picture of paper: its ink stays dark on it */
+  .cb-want, .cb-star, .cb-spot { outline: 2px solid Highlight; }
+  .cb-switch-ui { border: 2px solid ButtonText; }
+  .cb-switch input:checked + .cb-switch-ui { background: Highlight; }
+  .cb-switch-ui::after { background: ButtonText; }
+  .cb-switch input:checked + .cb-switch-ui::after { background: HighlightText; }
 }
 .section { padding: 0 0 56px; }
 #view-adventures > .wrap, #view-adventure > .wrap { padding-bottom: 56px; }  /* views that end in their top wrap: the same gap before the footer */
@@ -222,7 +315,7 @@ a.tile:hover h3 { color: var(--accent); }
    three read as one wood. It advances on its own every 7s (paused on hover, focus, Pause, reduced motion, or off-screen). */
 #home-start { --text-left: calc(max(0px, (100% - 1200px) / 2) + clamp(24px, 50px - (100% - 1200px) / 2, 50px)); --join: 48px;
   --pad: max(var(--text-left), 64px); padding-top: 0; }  /* text clears the 48px blends and the arrows */
-.steps-show { position: relative; width: 100%; aspect-ratio: 1600 / 780; min-height: 420px; max-height: calc(100vh - 88px); background: #000; }  /* the art's own shape, uncropped, unless the window is short */
+.steps-show { position: relative; width: 100%; aspect-ratio: 1600 / 520; min-height: 340px; max-height: min(60vh, calc(100vh - 88px)); background: #000; }  /* a band cut from the art; each slide's scene() picks the crop */
 /* the book's diamond chain frames the slideshow above and below, full width, touching the art */
 .diamond-rule.steps-edge { margin: 0; }
 .steps-band { height: 100%; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; }
@@ -233,7 +326,7 @@ a.tile:hover h3 { color: var(--accent); }
 .step { position: relative; flex: 0 0 100%; height: 100%; margin: 0; overflow: hidden; scroll-snap-align: start; background: #000; }
 .step + .step { margin-left: calc(-1 * var(--join));
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--join)); mask-image: linear-gradient(to right, transparent, #000 var(--join)); }
-.step-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; }
+.step-art { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* steps 1 and 2 move, and end exactly where the art has them. Step 1: the bow arm turns about the archer's drawing hand
    (452.1, 305.6 in its 1600×784 frame) and the bird drifts in from up and to the right. Step 2: the rider gallops in from
    the left. Step 3: her sword swings down and right into the clash about her grip, and his rises about his. Slow, once
@@ -365,6 +458,13 @@ a.tile:hover h3 { color: var(--accent); }
 .adv-detail .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 /* an adventure's own images are hotlinked from cairnrpg.com: hold a box for them until they load */
 .prose figure img.hotlink { aspect-ratio: auto 3 / 2; min-width: min(100%, 320px); }
+/* a <details> from the author's Markdown (an example to expand), and the FAQ's button that opens them all */
+.prose .disclosure { margin: 1em 0; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.prose .disclosure summary { min-height: 44px; display: flex; align-items: center; padding: 6px 14px; cursor: pointer; color: var(--heading); font-weight: 700; }
+.prose .disclosure[open] summary { border-bottom: 1px solid var(--border); }
+.prose .disclosure-body { padding: 4px 14px 10px; }
+.prose .disclosure-body > :first-child { margin-top: .6em; }
+.prose .expand-all { margin: 0 0 1em; }
 .prose pre.fence { overflow-x: auto; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-size: .92rem; line-height: 1.45; }
 @media (max-width: 1199px) { .adv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } #advHome { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 899px) { .adv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -481,6 +581,272 @@ a.tile:hover h3 { color: var(--accent); }
 table.aligned { table-layout: fixed; }  /* its <colgroup> widths, shared with the tables around it (alignTables) */
 table.aligned th, table.aligned td { overflow-wrap: break-word; }
 table.aligned tbody th { white-space: normal; }  /* its column has a set width, so a long row header (a Marketplace item) wraps */
+/* ---------- character builder (Character Creation) */
+.cb-callout { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 10px 24px; margin: 0 0 28px; padding: 12px 12px 12px 20px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-left: 4px solid var(--accent); border-radius: 6px; }
+.cb-callout[hidden] { display: none; }
+.cb-callout p { margin: 0; }
+.cb-callout-title { flex: 1 1 auto; min-width: 0; font-size: 1.3rem; font-weight: 700; color: var(--heading); }
+.cb-callout > .btn, .cb-callout-btns { flex: none; }
+.cb-callout-title .muted { font-size: 1rem; font-weight: 400; }
+.cb-callout-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+.cb-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 35; background: var(--surface); border-top: 3px solid var(--dice); box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
+.cb-bar[hidden], .cb-bar [hidden] { display: none !important; }
+.cb-bar-in { width: min(1200px, 100%); margin: 0 auto; padding: 10px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-height: 64px; }
+.cb-what { flex: 1 1 24em; min-width: 0; }
+.cb-step { margin: 0; color: var(--muted); font-size: .95rem; }
+.cb-tip { margin: 2px 0 0; color: var(--text); font-size: .95rem; }
+.cb-step b { color: var(--heading); }
+.cb-dice { margin-left: 4px; padding: 1px 7px; border: 1px solid var(--border-strong); border-radius: 999px; font-size: .85rem; }
+.cb-sc-tip .cb-dice { margin: 0 1px; padding: 0 7px; white-space: nowrap; }  /* inline in the tip's sentence */
+.cb-result { margin: 0; flex: 1 1 14em; min-width: 0; color: var(--heading); }
+.cb-swap { display: flex; flex-wrap: wrap; gap: 6px; }
+.cb-swap button { border: 1px solid var(--border-strong); }
+.cb-swap button[aria-pressed="true"] { background: var(--dice); border-color: var(--dice); color: #fff; }
+.cb-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cb-btns .btn { min-height: 44px; padding: 0 16px; }
+.cb-btns .btn:disabled { opacity: .45; cursor: not-allowed; }
+.cb-hit { outline: 2px solid color-mix(in srgb, var(--dice), #fff 45%); outline-offset: -2px; background: color-mix(in srgb, var(--dice) 45%, transparent) !important; color: var(--heading); }
+li.cb-hit { border-radius: 999px; }
+.cb-panel { margin: 0 0 1.6em; padding: 4px 22px 16px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; }
+.cb-names { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; }
+.cb-names li { margin: 0; padding: 2px 12px; border: 1px solid var(--border); border-radius: 999px; }
+.cb-review { margin: 2.4em 0 1em; padding: 6px 22px 20px; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; }
+.cb-review h2 { margin-top: .8em; }
+/* the walkthrough: a full-screen dialog, one step at a time over the vines, with the step in a drawer on the right */
+.cb-walk { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: clip; background: var(--bg); color: var(--text); }  /* clip: focusing into the sliding drawer can't scroll it sideways */
+.cb-walk[open] { display: grid; grid-template-rows: minmax(0, 1fr); }
+.cb-walk::backdrop { background: var(--bg); }
+.cb-walk-in { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) min(440px, 40vw); min-height: 0; }
+.cb-walk-main { min-height: 0; overflow: auto; padding: clamp(16px, 4vw, 48px) clamp(16px, 3vw, 40px); }
+.cb-walk-step { width: min(760px, 100%); max-width: none; margin: 0 auto; padding: 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
+.cb-walk .cb-walk-step > .cb-review { padding: 4px clamp(16px, 3vw, 32px) 24px; }
+/* a step's card: a header band (step, name, dice, what to do) over its table */
+.cb-sc-head { padding: 18px clamp(16px, 3vw, 32px) 16px; background: var(--surface-2); border-bottom: 3px solid var(--dice); }
+.cb-sc-eye { margin: 0 0 4px; color: var(--muted); font-size: .9rem; }
+.cb-sc-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.cb-sc h2 { margin: 0; font-size: 1.5rem; }
+.cb-sc-tip { margin: 8px 0 0; color: var(--text); }
+.cb-sc-body { padding: 18px clamp(16px, 3vw, 32px) 26px; }
+.cb-sc h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.cb-sc li { margin: 0; }
+.cb-rows { list-style: none; margin: 0; padding: 0; }
+.cb-rows li { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: 12px; padding: 8px 10px; border-top: 1px solid var(--border); }
+.cb-rows li:first-child { border-top: 0; }
+.cb-rows li.cb-hit { border-radius: 4px; scroll-margin-block: 16px; }  /* the page's rolled names are pills; rows aren't */
+.cb-rn { color: var(--muted); text-align: end; font-variant-numeric: tabular-nums; }
+.cb-hit .cb-rn { color: var(--heading); }
+.cb-rh { color: var(--heading); }
+.cb-rows-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(10, auto); column-gap: 28px; }
+.cb-rows-2 li:nth-child(11) { border-top: 0; }  /* the second column's first row */
+.cb-rows-tight li { padding: 3px 8px; }
+.cb-rdesc { display: block; margin: 4px 0 .3em; font-size: .92rem; line-height: 1.45; }  /* the gap under its last line matches the one above the name */
+.cb-gear { margin: 0 0 20px; padding-inline-start: 1.2em; }
+.cb-sc-rule { margin: 0 0 16px; }
+.cb-vals { display: flex; flex-wrap: wrap; gap: 16px; }
+.cb-val { display: grid; justify-items: center; align-content: center; gap: 6px; width: 128px; aspect-ratio: 1; border: 2px solid var(--border-strong); border-radius: 10px; background: var(--surface); }
+.cb-val b { font-size: 2.6rem; line-height: 1; color: var(--heading); }
+.cb-val-l { color: var(--muted); font-size: .9rem; letter-spacing: .06em; }
+.cb-val-empty { border-style: dashed; }
+.cb-val.cb-hit .cb-val-l { color: var(--heading); }  /* the muted label is too faint on the rolled box's tint */
+.cb-val-empty b { color: var(--muted); }
+.cb-traits { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 20px 24px; }
+.cb-skipped { margin: 0 0 12px; color: var(--muted); }
+.cb-walk .cb-what { display: none; }  /* the card's header says it */
+@media (max-width: 559px) { .cb-rows-2 { grid-template-columns: minmax(0, 1fr); grid-auto-flow: row; grid-template-rows: none; } .cb-rows-2 li:nth-child(11) { border-top: 1px solid var(--border); } }
+.cb-walk.cb-at-review .cb-bar { display: none; }  /* no buttons at the review */
+/* 760px and up: the portrait sheet on a stage to the left, zoomed to the step's section; the step in the drawer */
+.cb-stage { display: none; }
+@media (min-width: 760px) {
+  .cb-walk-in { grid-template-columns: minmax(0, 1fr) min(460px, 42vw); }
+  .cb-walk-main { overflow: hidden; padding: 0; }
+  .cb-stage { display: block; position: relative; width: 100%; height: 100%; }
+  .cb-psheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+  /* a sheet of paper lying on the stage, with a soft shadow under it (no tilt: it runs flush to the edges) */
+  .cb-psheet .cb-card { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .45)) drop-shadow(0 18px 36px rgba(0, 0, 0, .55)); }
+  /* the section about to be filled in, title and all: a soft golden glow, nothing dimmed */
+  .cb-spot { position: absolute; pointer-events: none; border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, transparent);
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 85%, transparent), 0 0 14px 4px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 40px 12px color-mix(in srgb, var(--accent) 25%, transparent); mix-blend-mode: multiply; }
+  .cb-spot[hidden] { display: none; }
+  /* the drawer's scroll area runs to its edges, so the step card's header band can too without overflowing sideways */
+  .cb-drawer-body { margin: 0 calc(-1 * clamp(16px, 2vw, 28px)); padding: 0 0 24px; }
+  .cb-drawer .cb-walk-step { width: auto; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: none; overflow: visible; }
+  .cb-drawer .cb-rows-2 { grid-template-columns: minmax(0, 1fr); grid-auto-flow: row; grid-template-rows: none; }  /* the drawer is narrow */
+  .cb-drawer .cb-rows-2 li:nth-child(11) { border-top: 1px solid var(--border); }
+}
+@media (min-width: 760px) and (prefers-reduced-motion: no-preference) {
+  /* the first start: the drawer waits for the vines, and slides in as the sheet zooms to Background */
+  .cb-walk.cb-intro .cb-drawer { visibility: hidden; animation: none; }
+  .cb-psheet { transition: transform .8s cubic-bezier(.3, .1, .2, 1); }
+  .cb-spot { transition: left .8s cubic-bezier(.3, .1, .2, 1), top .8s cubic-bezier(.3, .1, .2, 1), width .8s cubic-bezier(.3, .1, .2, 1), height .8s cubic-bezier(.3, .1, .2, 1); animation: cb-glow 2.4s ease-in-out infinite alternate; }
+  @keyframes cb-glow { to { box-shadow: 0 0 0 1.5px var(--accent), 0 0 20px 6px color-mix(in srgb, var(--accent) 65%, transparent), 0 0 52px 16px color-mix(in srgb, var(--accent) 30%, transparent); } }
+}
+.cb-walk.cb-at-review .cb-walk-step { width: min(1180px, 100%); }
+.cb-walk .cb-review { margin: 0; padding: 0; border: 0; background: none; }
+.cb-walk-main:focus-visible, .cb-drawer-body:focus-visible, .cb-sheet-body:focus-visible { outline-offset: -3px; }  /* both scroll, so keyboard users can reach them */
+/* the controls, at the foot of the drawer */
+.cb-walk .cb-bar { position: static; flex: none; margin: 0 calc(-1 * clamp(16px, 2vw, 28px)); background: var(--surface); border-top: 3px solid var(--dice); box-shadow: 0 -8px 20px rgba(0, 0, 0, .3); }
+.cb-walk .cb-bar-in { width: 100%; min-height: 0; padding: 14px clamp(16px, 2vw, 28px) 18px; flex-direction: column; align-items: stretch; gap: 10px; }
+.cb-walk .cb-what, .cb-walk .cb-result { flex: none; }
+.cb-walk .cb-btns .btn { flex: 1 1 auto; }
+/* the vines: the Warden's Guide p.31 pattern over the whole screen. The first time the first table shows they climb from the
+   bottom to the top in about 5s (six soft-edged columns, each at its own pace); afterwards they're simply there */
+@property --v1 { syntax: '<percentage>'; inherits: false; initial-value: 160%; }
+@property --v2 { syntax: '<percentage>'; inherits: false; initial-value: 160%; }
+@property --v3 { syntax: '<percentage>'; inherits: false; initial-value: 160%; }
+@property --v4 { syntax: '<percentage>'; inherits: false; initial-value: 160%; }
+@property --v5 { syntax: '<percentage>'; inherits: false; initial-value: 160%; }
+@property --v6 { syntax: '<percentage>'; inherits: false; initial-value: 160%; }
+.cb-walk-vines { position: absolute; inset: 0; pointer-events: none;
+  mask: radial-gradient(40% var(--v1) at 0% 100%, #000 70%, transparent),
+    radial-gradient(40% var(--v2) at 20% 100%, #000 70%, transparent),
+    radial-gradient(40% var(--v3) at 40% 100%, #000 70%, transparent),
+    radial-gradient(40% var(--v4) at 60% 100%, #000 70%, transparent),
+    radial-gradient(40% var(--v5) at 80% 100%, #000 70%, transparent),
+    radial-gradient(40% var(--v6) at 100% 100%, #000 70%, transparent); }
+.cb-walk-vines::before { content: ''; position: absolute; inset: 0; background: #8f8370; opacity: .85; mask: url(__VINES__) 0 0 / 260px repeat; }
+@media (prefers-reduced-motion: no-preference) {
+  .cb-walk.cb-grow .cb-walk-vines { animation: cb-v1 4.6s cubic-bezier(.4, .2, .6, .9) 0s both, cb-v2 4.4s cubic-bezier(.4, .2, .6, .9) .4s both, cb-v3 4.8s cubic-bezier(.4, .2, .6, .9) .15s both, cb-v4 4.45s cubic-bezier(.4, .2, .6, .9) .55s both, cb-v5 4.6s cubic-bezier(.4, .2, .6, .9) .25s both, cb-v6 4.9s cubic-bezier(.4, .2, .6, .9) .1s both; }
+  .cb-walk[open] .cb-drawer { animation: cb-drawer .55s cubic-bezier(.2, .7, .2, 1) .15s backwards; }
+  .cb-want { animation: cb-want 1.2s ease-in-out infinite alternate; }
+  .cb-new { animation: cb-ink .9s ease-out backwards; }
+}
+@keyframes cb-v1 { from { --v1: 0%; } }
+@keyframes cb-v2 { from { --v2: 0%; } }
+@keyframes cb-v3 { from { --v3: 0%; } }
+@keyframes cb-v4 { from { --v4: 0%; } }
+@keyframes cb-v5 { from { --v5: 0%; } }
+@keyframes cb-v6 { from { --v6: 0%; } }
+@keyframes cb-drawer { from { transform: translateX(100%); } }
+@keyframes cb-want { to { background: rgba(65, 105, 125, .28); } }
+@keyframes cb-ink { from { opacity: 0; filter: blur(3px); } }
+/* the drawer: the step's card and its controls */
+.cb-drawer { min-height: 0; display: flex; flex-direction: column; padding: 0 clamp(16px, 2vw, 28px); background: var(--surface); border-left: 1px solid var(--border-strong); box-shadow: -12px 0 32px rgba(0, 0, 0, .45); }
+/* its header stays put while the step scrolls: back on the left, the title, close on the right */
+.cb-drawer-head { flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; margin: 0 calc(-1 * clamp(16px, 2vw, 28px)); padding: 10px clamp(8px, 1vw, 16px); background: var(--surface); border-bottom: 1px solid var(--border-strong); }
+.cb-drawer-name { margin: 0; font-size: 1.2rem; text-align: center; }
+.cb-back:disabled { opacity: .35; cursor: not-allowed; }
+.cb-drawer-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 2px 24px; }  /* each step's header band meets the drawer header's stroke */
+/* the character so far: a row per result, newest last */
+.cb-sum { margin: 0; }
+.cb-sum-row { padding: 9px 10px; border-top: 1px solid var(--border); border-radius: 4px; }
+.cb-sum-row:first-child { border-top: 0; }
+.cb-sum dt { color: var(--muted); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+.cb-sum dd { margin: 2px 0 0; color: var(--heading); }
+.cb-sum-empty { color: var(--muted); }
+.cb-sum-edit label { display: block; }
+.cb-sum-edit input, .cb-sum-edit textarea { box-sizing: border-box; width: 100%; margin: 0; padding: 4px 2px; border: 0; border-bottom: 1px solid var(--border-strong); border-radius: 0; background: transparent; color: var(--heading); font: inherit; resize: none; }
+.cb-sum-edit textarea { field-sizing: content; }
+.cb-sum-edit [aria-invalid="true"] { border-bottom: 2px solid var(--heading); }
+.cb-sum-row.cb-want { box-shadow: none; outline: 1px dashed var(--border-strong); outline-offset: -1px; }
+.cb-cards { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.cb-card { position: relative; container-type: inline-size; width: min(100%, calc(var(--cw) * .6px)); aspect-ratio: var(--cw) / var(--ch); color: #1b1712; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .55)); }
+.cb-card > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cb-card-sheet { width: 100%; }
+.cb-fld { position: absolute; display: flex; align-items: flex-end; gap: .3em; margin: 0; font-size: calc(var(--fit, 1) * var(--f) * 100cqw / var(--cw)); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-big { justify-content: center; align-items: center; font-weight: 700; }
+/* the written lines sit a little in from the printed rule's start. A single line also sits a little higher on its rule (16 sheet
+   px: about 8px at the stage's 1.8x). Multi-line boxes keep their lines on the printed rules (portrait only: landscape uses LAND_NUDGE) */
+.cb-fld:not(.cb-score) { padding-left: .5em; }
+.cb-fld:not(.cb-score, .cb-multi) { translate: 0 calc(-16 * 100cqw / var(--cw)); }
+.cb-fld.cb-f-name { translate: 0 calc(-8 * 100cqw / var(--cw)); }  /* Name gets half the lift (8 sheet px, about 4px on the stage) */
+.cb-fld[class*="cb-f-ptraits-"] { translate: 0 calc(-12 * 100cqw / var(--cw)); }
+/* the scores sit low in their boxes: STR, DEX and WIL lift about 2px, HP about 6px */
+.cb-fld.cb-f-str, .cb-fld.cb-f-dex, .cb-fld.cb-f-wil { translate: 0 calc(-4 * 100cqw / var(--cw)); }
+.cb-fld.cb-f-hp { translate: 0 calc(-12 * 100cqw / var(--cw)); }
+.cb-card.cb-land .cb-fld { translate: calc(var(--dx, 0) * 100cqw / var(--cw)) calc(var(--dy, 0) * 100cqw / var(--cw)); }
+/* Armor and weapon: what the step celebrates, ringed in gold on the sheet */
+.cb-fld.cb-star { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; box-shadow: 0 0 12px 3px color-mix(in srgb, var(--accent) 55%, transparent); }
+.cb-typed-in { margin-top: 20px; }
+.cb-typed-err { margin: 6px 0 0; color: var(--heading); font-size: .95rem; }
+.cb-typed-err:empty { margin: 0; }  /* the review's Age message stays in the page, empty, so it's announced when it fills */
+.cb-arms .cb-val small { display: block; margin-top: 2px; color: var(--heading); font-size: .85rem; }
+.cb-val.cb-val-list { flex: 1 1 200px; width: auto; aspect-ratio: auto; justify-items: start; padding: 14px 18px; }  /* a weapon's name and damage read as words, not a score */
+.cb-val-list b { display: block; font-size: 1.3rem; line-height: 1.25; }
+.cb-sc-note { margin: 12px 0 0; color: var(--muted); }
+/* the traits card's All 8d10 switch, at the right of its title */
+.cb-switch { position: relative; margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--text); font-size: .95rem; cursor: pointer; }
+.cb-switch-ui { position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--border-strong); }
+.cb-switch-ui::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--heading); }
+.cb-switch input:checked + .cb-switch-ui { background: var(--accent); }
+.cb-switch input:checked + .cb-switch-ui::after { left: 21px; background: var(--on-accent); }
+.cb-switch input:focus-visible + .cb-switch-ui { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cb-multi { align-items: flex-start; white-space: pre-wrap; line-height: calc(var(--lh) * 100cqw / var(--cw)); }
+.cb-tl { flex: none; font-size: .7em; letter-spacing: .04em; text-transform: uppercase; color: #5f5446; }
+.cb-want { background: rgba(65, 105, 125, .12); box-shadow: inset 0 -2px 0 #41697d; }
+.cb-fld input, .cb-fld textarea { flex: 1; min-width: 0; width: 100%; height: 100%; margin: 0; padding: 0 .15em; border: 0; border-radius: 2px; background: rgba(65, 105, 125, .1); color: inherit; font: inherit; line-height: inherit; resize: none; }
+.cb-big input { text-align: center; }
+.cb-fld input:hover, .cb-fld textarea:hover { background: rgba(65, 105, 125, .2); }
+.cb-fld input:focus-visible, .cb-fld textarea:focus-visible { outline: 2px solid #41697d; outline-offset: -2px; background: #fff; }
+/* phones: no drawer. The walkthrough scrolls as one column, the step's cards follow its table, and the controls are a
+   footer fixed to the bottom */
+@media (max-width: 759px) {
+  .cb-walk-in { display: block; height: 100%; overflow: auto; padding: var(--head-h, 64px) 0 var(--bar-h, 160px); scroll-padding: var(--head-h, 64px) 0 var(--bar-h, 160px); }
+  .cb-walk-main { overflow: visible; padding-bottom: 8px; }
+  .cb-drawer { display: block; padding: 8px 16px 24px; background: none; border: 0; box-shadow: none; }
+  .cb-walk[open] .cb-drawer { animation: none; }
+  .cb-drawer-head { position: fixed; top: 0; left: 0; right: 0; z-index: 3; margin: 0; padding: 8px 10px; }
+  .cb-walk .cb-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; margin: 0; }
+  .cb-walk .cb-bar-in { padding: 10px 16px 12px; gap: 6px; }
+  .cb-card { width: min(100%, calc(var(--cw) * .5px)); }
+  /* the step stays in the main column, and the sheet so far is in the footer's panel, so the drawer keeps only its header */
+  .cb-drawer-body { display: none; }
+  /* a short screen (a phone on its side, or zoomed): the footer scrolls rather than crowding out the step */
+  .cb-walk .cb-bar { max-height: 50vh; overflow-y: auto; }
+  /* the first start: only the vines and the header while they grow; the step and the footer come in when they finish */
+  .cb-walk.cb-intro .cb-walk-step, .cb-walk.cb-intro .cb-bar { visibility: hidden; }
+}
+/* when they finish, the footer slides up and the step rises in behind it */
+@media (max-width: 759px) and (prefers-reduced-motion: no-preference) {
+  .cb-walk.cb-enter .cb-walk-in { overflow: hidden; }  /* the card below the screen would otherwise stretch the scroll area */
+  /* springs from Motion's spring(visualDuration, bounce): the footer (.5s, .15), then the step (.65s, .12), which also fades
+     in as it rises; the cubic-bezier lines are the fallback where linear() isn't supported */
+  .cb-walk.cb-enter .cb-bar { animation: cb-rise .6s cubic-bezier(.2, .7, .2, 1) backwards;
+    animation: cb-rise 900ms linear(0, 0.0439, 0.1461, 0.2736, 0.4054, 0.5291, 0.6382, 0.73, 0.8046, 0.8633, 0.908, 0.9412, 0.965, 0.9815, 0.9925, 0.9994, 1.0035, 1.0055, 1.0062, 1.0062, 1.0056, 1.0049, 1.004, 1.0032, 1.0025, 1.0019, 1.0014, 1.001, 1, 1) backwards; }
+  .cb-walk.cb-enter .cb-walk-step { animation: cb-rise-far .75s cubic-bezier(.2, .7, .2, 1) .08s backwards, cb-fade-in .35s ease-out .08s backwards;
+    animation: cb-rise-far 800ms linear(0, 0.0266, 0.092, 0.1792, 0.2763, 0.3749, 0.4696, 0.5571, 0.6356, 0.7044, 0.7635, 0.8134, 0.855, 0.889, 0.9165, 0.9384, 0.9556, 0.9689, 0.9791, 0.9867, 0.9923, 0.9963, 0.999, 1.0009, 1.002, 1.0026, 1) .08s backwards, cb-fade-in .35s ease-out .08s backwards; }
+}
+@keyframes cb-rise { from { translate: 0 100%; } }
+@keyframes cb-rise-far { from { translate: 0 45vh; } }  /* far enough to read as rising from below, short enough to stay smooth */
+@keyframes cb-fade-in { from { opacity: 0; } }
+/* phones: the sheet so far, as plain text, behind a collapsible row in the footer; open, the footer grows to full screen */
+.cb-sheet-btn { display: none; }
+@media (max-width: 759px) {
+  .cb-sheet-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; margin: 0; padding: 6px 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .cb-sheet-txt { flex: 1; min-width: 0; display: grid; }
+  .cb-sheet-count { color: var(--heading); font-weight: 600; }
+  .cb-sheet-last { overflow: hidden; color: var(--muted); font-size: .9rem; white-space: nowrap; text-overflow: ellipsis; }
+  .cb-sheet-btn svg { flex: none; }
+}
+.cb-sheet-panel { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; background: var(--surface); border-top: 3px solid var(--dice); }
+.cb-sheet-panel[hidden] { display: none; }
+/* its header is the footer's row, open: same padding, so it starts exactly over that row as the panel rises */
+.cb-sheet-head { flex: none; padding: 10px 16px; border-bottom: 1px solid var(--border-strong); }
+.cb-sheet-title { margin: 0; font: inherit; }
+.cb-sheet-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 24px; }
+@media (max-width: 759px) and (prefers-reduced-motion: no-preference) {
+  /* the panel's top starts at the footer's top edge and rises to the top of the screen; collapsing runs it back down */
+  .cb-sheet-panel { transition: translate .35s cubic-bezier(.2, .7, .2, 1), display .35s allow-discrete; }
+  .cb-sheet-panel[hidden] { translate: 0 calc(100% - var(--bar-h, 160px)); }
+  @starting-style { .cb-sheet-panel:not([hidden]) { translate: 0 calc(100% - var(--bar-h, 160px)); } }
+  /* the list fades in once the panel is mostly up, and out at once on collapse, so it never smears past */
+  .cb-sheet-body { transition: opacity .2s .15s; }
+  .cb-sheet-panel[hidden] .cb-sheet-body { opacity: 0; transition: opacity .12s; }
+  @starting-style { .cb-sheet-panel:not([hidden]) .cb-sheet-body { opacity: 0; } }
+}
+.cb-warn { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--surface-2); }
+.cb-print { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; }
+#cbDownload[aria-disabled="true"] { opacity: .5; pointer-events: none; }  /* until the sheet is filled there's nothing to download */
+.cb-print .sheet-pick { flex: 1 1 100%; margin: 0; border: 0; padding: 0; min-width: 0; }  /* the sheet's segmented control, a row of its own */
+.cb-status { margin: 10px 0 0; color: var(--muted); }
+@media (max-width: 759px) {
+  .cb-bar-in { padding: 8px 16px; gap: 4px 12px; }
+  .cb-btns { width: 100%; }
+  .cb-btns .btn { flex: 1 1 auto; padding: 0 10px; }
+  .cb-callout { padding-left: 16px; gap: 10px 14px; }
+  .cb-callout-title { font-size: 1.1rem; }
+  .cb-callout:has(.cb-callout-btns) { flex-wrap: wrap; }  /* Continue and Start over don't fit beside the text on a phone */
+}
 .table-wrap { overflow-x: auto; margin: 0 0 1.2em; border: 1px solid var(--border); border-radius: 6px; }
 table { border-collapse: collapse; width: 100%; font-size: 1rem; }
 /* short tables: the frame shrinks to the table instead of leaving an empty bordered area */
@@ -510,7 +876,7 @@ tbody th { color: var(--heading); white-space: nowrap; }
 /* ---------- resources view */
 .field label { display: block; font-size: 1rem; color: var(--muted); margin-bottom: 4px; }
 .field input { min-height: 44px; width: min(360px, 100%); padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; }
-/* Monsters, laid out like the ItO bestiary sheet: a letter rail on the left that follows the scroll, beside one
+/* Monsters, laid out as one bestiary sheet: a letter rail on the left that follows the scroll, beside one
    continuous stream of stat blocks (no cards, no visible letter headings). --head is the sticky header's height, set in JS. */
 .bestiary { display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; column-gap: 48px;  /* an empty column matches the rail, so the stream centres on the page */
   margin-top: 24px; }
@@ -535,7 +901,7 @@ tbody th { color: var(--heading); white-space: nowrap; }
 #monsters { margin-top: 48px; }
 .letter-group { display: flex; flex-direction: column; gap: 48px; }
 .letter-group:focus { outline: none; }
-/* stat block, in the workbench's order: name, stat line, attack (and detachment), then abilities as bullets,
+/* stat block, in this order: name, stat line, attack (and detachment), then abilities as bullets,
    with the book's double-ended hairline under the name only */
 .monster { display: flex; flex-direction: column; gap: 10px; }
 .monster h3 { margin: 0; font-size: 1.6rem; }
@@ -544,12 +910,12 @@ tbody th { color: var(--heading); white-space: nowrap; }
 .monster .book-rule { opacity: .667; }
 .monster .stats, .monster .attack { margin: 0; font-size: 1.15rem; }
 .monster .stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; color: var(--heading); margin-left: -20px; clip-path: inset(-1em -1em -1em 20px); }
-/* the workbench's stat line: a small label, then the number larger and bold, with a dot between stats. Every stat
+/* the stat line: a small label, then the number larger and bold, with a dot between stats. Every stat
    starts with a 20px dot; the row is pulled 20px left and that strip is clipped, so the dot of a stat that starts a
    line is cut off and a row never starts or ends on a dot */
-.monster .stat { white-space: nowrap; }
-.monster .stat .l { font-size: .95rem; letter-spacing: .04em; }
-.monster .stat b { font-size: 1.5rem; margin-left: 3px; font-variant-numeric: lining-nums tabular-nums; }  /* Alegreya's equal-width digits */
+.monster .stat { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }  /* the number sits centred on its label */
+.monster .stat .l { margin-left: 2px; font-size: .95rem; letter-spacing: .04em; translate: 0 2px; }
+.monster .stat b { font-size: 1.7rem; font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }  /* Alegreya Medium, in its equal-width digits */
 .monster .stat .dot { display: inline-block; width: 20px; text-align: center; font-size: .95rem; color: var(--muted); }
 .monster ul { font-size: 1.15rem; margin: 0; }
 @media (max-width: 640px) {  /* as the sheet does on phones */
@@ -576,8 +942,8 @@ tbody th { color: var(--heading); white-space: nowrap; }
 @media (max-width: 1099px) {
   .sheets { grid-template-columns: minmax(0, 1fr); }
   .sheets-text { max-width: 40em; }
-  /* narrower: "On this page" keeps its column and the Second Edition nav goes first
-     (the breadcrumbs, the previous/next links and, below 960px, the Menu drawer still reach it) */
+  /* narrower: the Second Edition nav is hidden, "On this page" keeps its column
+     (breadcrumbs down to 760px, previous/next and, below 960px, the Menu drawer still reach it) */
   .rules-layout { grid-template-columns: minmax(0, 1fr) 210px; }
   .rules-layout > .section-nav { display: none; }
   .rules-layout > .crumbs { display: block; }
@@ -621,10 +987,10 @@ tbody th { color: var(--heading); white-space: nowrap; }
   .proto-bar .long { display: none; }
   .wrap { padding: 0 16px; }
   #home-start { --text-left: 16px; }
-  .steps-show { aspect-ratio: auto; height: 520px; }
+  .steps-show { aspect-ratio: auto; height: 400px; }
   .steps h3 { font-size: 1.4rem; }
   .step-body { padding-bottom: 58px; }  /* room for Pause below the text */
-  .dice-tray { left: 16px; right: 16px; width: auto; max-width: none; }
+  .dice-tray { left: 0; width: 100%; border-left: 0; }
   .dice-toast { left: 16px; right: 16px; }
   .hero { padding-top: 44px; padding-bottom: 44px; }
   .hero::before { background: linear-gradient(rgba(38,37,43,.74), rgba(38,37,43,.9)), var(--hero-img) 62% center / cover no-repeat; }
@@ -640,9 +1006,12 @@ tbody th { color: var(--heading); white-space: nowrap; }
   .wrap.section-rule { margin-bottom: 39px; }
   .section:not(:has(> .section-rule)) { padding-top: 40px; }
   .rules-layout { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 56px; gap: 20px; }
-  .rules-layout > .toc { position: static; grid-column: 1; grid-row: 2; margin-bottom: -10px; max-height: none; }
-  .rules-layout > .rules-main { grid-column: 1; grid-row: 3; }
-  .opener { margin-top: 0; }  /* phones: the "On this page" button sits just above, so no pull-up */
+  /* the Menu drawer (and, in the rules, previous/next) still lead up */
+  .rules-layout > .crumbs, .view-top > .crumbs { display: none; }
+  .rules-layout > .rules-main { grid-column: 1; grid-row: 1; }
+  /* "On this page" is moved into the article, under the title and any builder callout (placeToc) */
+  .rules-main > .toc { position: static; max-height: none; overflow: visible; margin: 0 0 24px; }  /* overflow: auto would clip the focus ring */
+  .opener { margin-top: 0; }  /* the -18px pull-up would leave 2px under the 20px phone padding */
   .toc-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface); color: var(--heading); font: inherit; font-size: 1rem; cursor: pointer; }
   .toc .nav-title { display: none; }
   .toc ul { margin-top: 10px; background: var(--surface); padding: 8px 0; border-radius: 6px; border: 1px solid var(--border); }
@@ -823,6 +1192,7 @@ tbody th { color: var(--heading); white-space: nowrap; }
           </div>
         </div>
         <p class="l10n-credit" id="l10nCredit" hidden></p>
+        <div class="cb-callout" id="cbCallout" hidden></div>
         <div class="prose" id="coreProse"></div>
         <nav class="pager" aria-label="Chapters" id="pager"></nav>
         <a class="back-top" href="#core-top">Back to top</a>
@@ -905,17 +1275,76 @@ tbody th { color: var(--heading); white-space: nowrap; }
   </div>
 </footer>
 
+<dialog class="cb-walk" id="cbWalk" aria-labelledby="cbDrawerTitle">
+<div class="cb-walk-vines" aria-hidden="true"></div>
+<div class="cb-walk-in">
+  <div class="cb-walk-main" id="cbWalkMain" tabindex="0" role="region" aria-label="This step">
+    <div class="cb-stage" id="cbStage"><div class="cb-psheet" id="cbPSheet"><div id="cbPCard"></div><div class="cb-spot" id="cbSpot" aria-hidden="true"></div></div></div>
+    <div class="cb-walk-step prose" id="cbWalkStep"></div>
+  </div>
+  <aside class="cb-drawer" id="cbDrawer" aria-labelledby="cbDrawerTitle">
+    <header class="cb-drawer-head" id="cbDrawerHead">
+      <button class="btn-icon cb-back" type="button" id="cbBack" aria-label="Back to the previous step"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2 class="cb-drawer-name" id="cbDrawerTitle">Roll a character</h2>
+      <button class="btn-icon cb-close" type="button" id="cbClose" aria-label="Stop building (your progress is kept)">✕</button>
+    </header>
+    <div class="cb-drawer-body" id="cbDrawerBody" tabindex="0" role="region" aria-labelledby="cbDrawerTitle"></div>
+    <section class="cb-bar" id="cbBar" aria-label="Character builder" hidden>
+    <div class="cb-bar-in">
+      <button class="cb-sheet-btn" type="button" id="cbSheetBtn" aria-expanded="false" aria-controls="cbSheetPanel"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="cb-sheet-txt"><span class="cb-sheet-count"><span>Your sheet</span><span class="cb-sheet-n"></span></span><span class="sr-only">. </span><span class="cb-sheet-last"></span></span></button>
+      <div class="cb-what"><p class="cb-step"><span id="cbStepNo"></span> · <b id="cbStepName"></b> <span class="cb-dice" id="cbDice"></span></p><p class="cb-tip" id="cbTip"></p></div>
+      <p class="cb-result sr-only" id="cbResult" aria-live="polite"></p>
+      <div class="cb-swap" id="cbSwap" hidden></div>
+      <div class="cb-btns">
+        <button class="btn btn-secondary" type="button" id="cbSkip" hidden>Skip</button>
+        <button class="btn btn-primary" type="button" id="cbRoll">Roll</button>
+        <button class="btn btn-secondary" type="button" id="cbNext">Next</button>
+      </div>
+    </div>
+  </section>
+  </aside>
+</div>
+<section class="cb-sheet-panel" id="cbSheetPanel" aria-labelledby="cbSheetName" hidden>
+  <header class="cb-sheet-head"><h2 class="cb-sheet-title"><button class="cb-sheet-btn" type="button" id="cbSheetCollapse" aria-expanded="true" aria-controls="cbSheetPanel"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="cb-sheet-txt"><span class="cb-sheet-count"><span id="cbSheetName">Your sheet</span><span class="cb-sheet-n"></span></span><span class="sr-only">. </span><span class="cb-sheet-last"></span></span></button></h2></header>
+  <div class="cb-sheet-body" id="cbSheetBody" tabindex="0" role="region" aria-labelledby="cbSheetName"><div id="cbSheetList" role="group" aria-labelledby="cbSheetName"></div></div>
+</section>
+</dialog>
+
 <div id="diceStage" aria-hidden="true"></div>
-<section class="dice-tray" id="diceTray" role="dialog" aria-labelledby="diceTitle" popover>
-  <h2 id="diceTitle">Roll dice</h2>
-  <ul class="dice-grid" id="diceGrid"></ul>
-  <p class="dice-pool" id="dicePool" role="status">Pick some dice</p>
-  <div class="dice-actions"><button class="btn btn-primary" id="diceRoll" type="button" disabled>Roll</button><button class="btn btn-secondary" id="diceClear" type="button">Clear</button></div>
-  <div class="dice-results" id="diceResults" role="status"></div>
-  <fieldset class="dice-colours"><legend>Colour</legend><div class="opts" id="diceColours"></div></fieldset>
+<section class="dice-tray" id="diceTray" role="dialog" aria-labelledby="diceTitle" popover="manual" data-view="rolls">
+  <header class="dice-head">
+    <button class="btn-icon" id="diceSettingsBtn" type="button" aria-label="Dice settings"><svg class="i-gear" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><svg class="i-back" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2 id="diceTitle">Dice</h2>
+    <button class="btn-icon" id="diceCollapse" type="button" aria-label="Close dice"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+  </header>
+  <div class="dice-body" id="diceBody" tabindex="0" role="region" aria-labelledby="diceTitle">
+    <div class="dice-chat" id="diceChat">
+      <p class="dice-note dice-empty" id="diceHistNone">No rolls yet. Pick dice below, type a roll, or click any die in the rules.</p>
+      <div role="log" aria-label="Roll history"><ol id="diceHist"></ol></div>
+    </div>
+    <div class="dice-settings" id="diceSettings" hidden>
+      <section aria-labelledby="dsDice"><h3 id="dsDice">Dice</h3>
+        <label class="dice-switch"><input type="checkbox" role="switch" id="dice3d" aria-describedby="dice3dWhy" checked>3D dice<span class="dice-switch-ui" aria-hidden="true"></span></label>
+        <p class="dice-note dice-why" id="dice3dWhy" hidden></p></section>
+      <fieldset class="dice-colours"><legend>Dice colour</legend><div class="opts" id="diceColours"></div></fieldset>
+      <section aria-labelledby="dsHist"><h3 id="dsHist">History</h3>
+        <button class="btn btn-secondary" id="diceHistClear" type="button">Clear history</button></section>
+    </div>
+  </div>
+  <footer class="dice-foot" id="diceFoot">
+    <div class="dice-poolrow"><p class="dice-pool" id="dicePool" role="status"></p><button class="dice-linkbtn" id="dicePoolClear" type="button" hidden>Clear</button></div>
+    <ul class="dice-grid" id="diceGrid"></ul>
+    <p class="dice-err" id="diceExprErr" role="alert" hidden></p>
+    <form class="dice-compose" id="diceType" novalidate><label class="sr-only" for="diceExpr">Type a roll</label>
+      <input id="diceExpr" type="text" placeholder="Type a roll, like 2d6+1" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-describedby="diceExprErr">
+      <button class="btn btn-primary" id="diceSend" type="submit" disabled>Roll</button></form>
+  </footer>
 </section>
 <div role="status"><button class="dice-toast" id="diceToast" type="button" aria-describedby="diceToastHint" hidden></button></div>
-<span class="sr-only" id="diceToastHint">Opens the dice tray</span>
+<span class="sr-only" id="diceToastHint">Opens the dice drawer</span>
+<div class="notices" id="notices" popover="manual"></div>
+<p class="sr-only" id="noticeSay" role="status"></p>
+<p class="sr-only" id="noticeAlert" role="alert"></p>
 
 <script>
 const D = /*__DATA__*/[];
@@ -954,8 +1383,8 @@ const covers = hs => hs.length > 4 ? hs.slice(0, 4).join(' · ') + ' · …' : h
 // play on backlit linen: the art with its moving figures painted out, each figure on its own layer (anim-*), multiplied
 // onto the linen with its edges softened and its black lifted to a deep brown
 let sceneId = 0;
-const scene = (w, h, layers) => { const id = `shadowSoft${++sceneId}`;
-  return `<svg class="step-art step-scene" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+const scene = (w, h, layers, top = 0) => { const id = `shadowSoft${++sceneId}`;
+  return `<svg class="step-art step-scene" viewBox="0 0 ${w} ${h}" data-full="0 0 ${w} ${h}" data-wide="0 ${top} ${w} ${h - top}" preserveAspectRatio="xMidYMin slice" aria-hidden="true" focusable="false">
     <filter id="${id}" x="-2%" y="-2%" width="104%" height="104%"><feGaussianBlur stdDeviation="0.9"/></filter>
     <image href="__LINEN__" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>
     <g style="mix-blend-mode: multiply" filter="url(#${id})">${layers}</g>
@@ -965,16 +1394,20 @@ const STEP_SCENES = {
     <image class="anim-bird" href="__STEP_BIRD__" x="570" y="0" width="445" height="184"/>
     <image class="anim-arm" href="__STEP_ARM__" x="377" y="144" width="257" height="286"/>`),
   [L.chargen_page.path]: scene(1600, 780, `<image href="__STEP_CHARGEN__" width="1600" height="780"/>
-    <image class="anim-horse" href="__STEP_HORSE__" x="749" y="257" width="460" height="510"/>`),
+    <image class="anim-horse" href="__STEP_HORSE__" x="749" y="257" width="460" height="510"/>`, 240),
   [CORE]: scene(1600, 772, `<image href="__STEP_CORE__" width="1600" height="772"/>
     <image class="anim-sword-l" href="__STEP_SWORD_L__" x="541" y="182" width="290" height="337"/>
-    <image class="anim-sword-r" href="__STEP_SWORD_R__" x="766" y="80" width="526" height="275"/>`),
+    <image class="anim-sword-r" href="__STEP_SWORD_R__" x="766" y="80" width="526" height="275"/>`, 50),
 };
+// from 760px up the band is a short strip and slides crop from their `top`; below it the band shows the whole art
+const WIDE = matchMedia('(min-width: 760px)');
+const fitScenes = () => { for (const s of document.querySelectorAll('.step-scene')) s.setAttribute('viewBox', WIDE.matches ? s.dataset.wide : s.dataset.full); };
 $('#steps').innerHTML = C.steps.map((st, i, all) => {
   const p = pageLink[st.path], href = st.path === CORE ? '#rules' : p.href;
   const extra = st.path === L.chargen_page.path ? `<p>Or use the ${a(L.chargen)}</p>` : '';
   return `<div class="step" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${all.length}">${STEP_SCENES[st.path]}<div class="step-body"><h3><span class="step-num" aria-hidden="true">${i + 1}</span><a href="${esc(href)}">${esc(p.label)}</a></h3><p>Covers ${esc(covers(st.covers))}</p>${extra}</div></div>`;
 }).join('');
+fitScenes(); WIDE.addEventListener('change', fitScenes);
 // the slideshow: arrows move one step and wrap around; it advances on its own every 7s, but never with reduced motion,
 // and it holds while hovered, focused, paused, scrolled out of view, or in a hidden tab
 { const show = $('.steps-show'), band = $('#stepsBand'), pauseBtn = $('#stepsPause'), JOIN = 48, EVERY = 7000, ANIM = 7000;
@@ -1112,7 +1545,7 @@ const TILES = [
   {id: 'res-translations', href: L.localization.href, title: 'Translations', count: n(D.counts.languages, 'language', 'languages'), desc: proposed('localization.md')},
   {id: 'res-guides', href: L.summary.href, title: 'Guides for Wardens', ...group(L.summary, L.hexcrawls, L.writing)},
   // First Edition and its pages, plus Barebones
-  {id: 'res-first-edition', href: L.first.href, title: 'First Edition', count: n(4, 'page', 'pages'),
+  {id: 'res-first-edition', href: L.first.href, title: 'First Edition', count: n(D.order.fe.length, 'page', 'pages'),
    extra: `<ul class="chapter-list">${li(a(L.srd1e, 'First Edition SRD'), a(L.faq1e, 'First Edition FAQs'), a(L.tools1e, 'First Edition tools'), a(L.barebones, 'Barebones'))}</ul>`},
 ];
 const tile = (t, rich) => rich
@@ -1136,7 +1569,7 @@ $('#footPlay').innerHTML = li('<a href="#resources">Resources</a>', '<a href="#m
 $('#footShare').innerHTML = li(a(L.submit, 'Submission guide'), a(L.discord, 'Discord'), a(L.localization, 'Translations'), a(L.first, 'First Edition'));
 
 // ---------- rules view: every Second Edition page (D.pages, from the build), in English or a community translation
-const PAGES = D.pages, GROUP_NAME = {pg: "Player's Guide", wg: "Warden's Guide", bg: 'Backgrounds', tools: 'Tools', index: 'Second Edition', fp: 'First Party adventure', conv: 'Conversion'};
+const PAGES = D.pages, GROUP_NAME = {pg: "Player's Guide", wg: "Warden's Guide", bg: 'Backgrounds', tools: 'Tools', index: 'Second Edition', fp: 'First Party adventure', conv: 'Conversion', ...Object.fromEntries(Object.entries(D.sections).map(([g, s]) => [g, s.title]))};
 const isAdvPage = id => !!ADV_PAGE_GROUPS[(PAGES[id] || {}).group];
 // an adventure's sidebar: the first-party modules and the conversions, each readable here
 const advNav = cur => { const g = PAGES[cur].group;
@@ -1144,12 +1577,17 @@ const advNav = cur => { const g = PAGES[cur].group;
   <details${g === 'fp' ? ' open' : ''}><summary>First Party</summary><ul>${li(...D.order.fp.map(id => plink(id, cur)))}</ul></details>
   <details${g === 'conv' ? ' open' : ''}><summary>Conversions</summary><ul>${li(...D.order.conv.map(id => plink(id, cur)))}</ul></details>
   <ul>${li('<a href="#adventures?g=originals">Originals</a>')}</ul>`; };
-const plink = (id, cur, label) => `<a href="#${esc(id)}"${id === cur ? ' aria-current="page"' : ''}>${esc(label || PAGES[id].title)}</a>`;
-const sectionNav = cur => { if (isAdvPage(cur)) return advNav(cur); const g = (PAGES[cur] || {}).group, open = x => g === x || cur === {pg: 'players-guide', wg: 'wardens-guide', bg: 'backgrounds'}[x] ? ' open' : '';
+const plink = (id, cur, label, name) => `<a href="#${esc(id)}"${id === cur ? ' aria-current="page"' : ''}${name ? ` aria-label="${esc(name)}"` : ''}>${esc(label || PAGES[id].title)}</a>`;  // name: the link's full name when its visible text repeats (Overview, Contents)
+// a section of the rest of the site (First Edition, Resources...): its pages as a tree, the open branch showing the current page
+const treeNav = cur => { const s = D.sections[PAGES[cur].group], kids = id => s.tree[id] || [];
+  const within = (id, x) => id === x || kids(id).some(k => within(k, x));
+  const node = id => kids(id).length ? `<details${within(id, cur) ? ' open' : ''}><summary>${esc(PAGES[id].title)}</summary><ul>${li(plink(id, cur, 'Overview', `Overview: ${PAGES[id].title}`), ...kids(id).map(node))}</ul></details>` : plink(id, cur);
+  return `<p class="nav-title">${plink(s.root, cur, s.title)}</p><ul>${li(...kids(s.root).map(node))}</ul>`; };
+const sectionNav = cur => { if (isAdvPage(cur)) return advNav(cur); if (D.sections[PAGES[cur].group]) return treeNav(cur); const g = (PAGES[cur] || {}).group, open = x => g === x || cur === {pg: 'players-guide', wg: 'wardens-guide', bg: 'backgrounds'}[x] ? ' open' : '';
   return `<p class="nav-title">${plink('second-edition', cur, 'Second Edition')}</p>
-  <details${open('pg') || (g === 'index' && cur !== 'wardens-guide' && cur !== 'backgrounds' ? ' open' : '')}><summary>Player's Guide</summary><ul>${li(plink('players-guide', cur, 'Contents'), ...D.order.pg.map(id => plink(id, cur)))}</ul></details>
-  <details${open('wg')}><summary>Warden's Guide</summary><ul>${li(plink('wardens-guide', cur, 'Contents'))}${D.wg_parts.map(p => `<li class="sub-part">${esc(p.label)}</li>${li(...p.items.map(c => plink(c.href.slice(1), cur)))}`).join('')}</ul></details>
-  <details${open('bg')}><summary>Backgrounds</summary><ul>${li(plink('backgrounds', cur, 'Contents'), ...D.order.bg.map(id => plink(id, cur)))}</ul></details>
+  <details${open('pg') || (g === 'index' && cur !== 'wardens-guide' && cur !== 'backgrounds' ? ' open' : '')}><summary>Player's Guide</summary><ul>${li(plink('players-guide', cur, 'Contents', "Contents: Player's Guide"), ...D.order.pg.map(id => plink(id, cur)))}</ul></details>
+  <details${open('wg')}><summary>Warden's Guide</summary><ul>${li(plink('wardens-guide', cur, 'Contents', "Contents: Warden's Guide"))}${D.wg_parts.map(p => `<li class="sub-part">${esc(p.label)}</li>${li(...p.items.map(c => plink(c.href.slice(1), cur)))}`).join('')}</ul></details>
+  <details${open('bg')}><summary>Backgrounds</summary><ul>${li(plink('backgrounds', cur, 'Contents', 'Contents: Backgrounds'), ...D.order.bg.map(id => plink(id, cur)))}</ul></details>
   <ul>${li(plink('tools', cur), a(L.chargen, 'Character Generator'), plink('game-files', cur), plink('print-copies', cur))}</ul>`; };
 // a small menu behind a button (the ⋯ page actions, the language list): arrows move, Escape closes, a click outside closes
 function menu(wrap, btn, list, sel, pick) {
@@ -1221,41 +1659,49 @@ function alignTables() {
     for (const t of tables) { t.classList.add('aligned'); const cap = t.querySelector('caption'); cap ? cap.insertAdjacentHTML('afterend', cols) : t.insertAdjacentHTML('afterbegin', cols); }
   }
 }
-// a table wider than the column scrolls sideways; make that one focusable and named, so the keyboard can scroll it too
+// a table or code block wider than the column scrolls sideways; make that one focusable and named, so the keyboard can scroll it too
 function scrollableTables(root = $('#coreProse')) {
-  for (const w of root.querySelectorAll('.table-wrap')) {
+  for (const w of root.querySelectorAll('.table-wrap, pre.fence')) {
     let h = w.previousElementSibling; while (h && !/^H[2-6]$/.test(h.tagName)) h = h.previousElementSibling;  // the nearest heading above it
-    const wide = w.scrollWidth > w.clientWidth + 1; h = h ? h.textContent : '';
-    if (wide) { w.tabIndex = 0; w.setAttribute('role', 'region'); w.setAttribute('aria-label', (w.querySelector('caption') || {}).textContent || (h ? h + ', table' : 'Table')); }
+    const wide = w.scrollWidth > w.clientWidth + 1, kind = w.tagName === 'PRE' ? 'code' : 'table'; h = h ? h.textContent : '';
+    if (wide) { w.tabIndex = 0; w.setAttribute('role', 'region'); w.setAttribute('aria-label', (w.querySelector('caption') || {}).textContent || (h ? `${h}, ${kind}` : kind[0].toUpperCase() + kind.slice(1))); }
     else { w.removeAttribute('tabindex'); w.removeAttribute('role'); w.removeAttribute('aria-label'); }
   }
 }
 addEventListener('resize', () => { if (!$('#view-rules').hidden) scrollableTables(); }, {passive: true});
+// the FAQ's button: opens every example on the page, or closes them again
+const expandLabel = () => { const b = $('#coreProse .expand-all'); if (b) b.textContent = [...$('#coreProse').querySelectorAll('details')].every(d => d.open) ? 'Collapse all examples' : 'Expand all examples'; };
+$('#coreProse').addEventListener('click', e => { if (!e.target.closest('.expand-all')) return;
+  const all = [...$('#coreProse').querySelectorAll('details')], open = !all.every(d => d.open);
+  for (const d of all) d.open = open; });
+$('#coreProse').addEventListener('toggle', expandLabel, true);  // the button's name says what it will do, however the examples were opened
 function renderPage(id, code) {
   const P = PAGES[id], Lg = langOf(code), T = Lg.code === 'en' ? null : Lg.pages[id], C = T || P;
   shown = {page: id, code: Lg.code};
   // only the translated text is marked as that language; the layout around it (crumbs, ⋯ labels) stays English
-  for (const el of [$('#coreProse'), $('#core-top')]) { if (!T) { el.removeAttribute('lang'); el.removeAttribute('dir'); } else { el.lang = Lg.code; el.dir = Lg.dir; } }
+  for (const el of [$('#coreProse'), $('#core-top')]) { if (!T && !(P.lang && el.id === 'coreProse')) { el.removeAttribute('lang'); el.removeAttribute('dir'); } else { el.lang = T ? Lg.code : P.lang; el.dir = T ? Lg.dir : 'ltr'; } }  // a page the repo itself publishes in another language (the SRD) has its text marked as that language; its title is the English name of the language, so it isn't
   $('#core-top').textContent = C.title;
   const sub = x => `<h3 id="${x.id}" tabindex="-1">${esc(x.title)}</h3>${x.html}`;
   const kid = c => { if (!c.id) return `<a href="${esc(c.href)}"${T ? ' lang="en" dir="ltr"' : ''}>${esc(c.label)}</a> <small lang="en" dir="ltr">(on cairnrpg.com)</small>`;
     const k = T && Lg.pages[c.id]; return `<a href="#${esc(c.id)}"${T && !k ? ' lang="en" dir="ltr"' : ''}>${esc((k || PAGES[c.id]).title)}</a>`; };
   $('#coreProse').innerHTML = C.intro + C.sections.map(s => `<h2 id="${s.id}" tabindex="-1">${esc(s.title)}</h2>${s.html}${s.subs.map(sub).join('')}`).join('') + (P.children.length ? `<ul class="child-list">${li(...P.children.map(kid))}</ul>` : '');
   $('#toc').hidden = !C.sections.length;
-  $('#tocList').innerHTML = `<ul${T ? ` lang="${Lg.code}" dir="${Lg.dir}"` : ''}>${C.sections.map(s => `<li><a href="#${s.id}">${esc(s.title)}</a></li>${s.subs.map(x => `<li class="lvl3"><a href="#${x.id}">${esc(x.title)}</a></li>`).join('')}`).join('')}</ul>`;
+  $('#tocList').innerHTML = `<ul${T || P.lang ? ` lang="${T ? Lg.code : P.lang}" dir="${T ? Lg.dir : 'ltr'}"` : ''}>${C.sections.map(s => `<li><a href="#${s.id}">${esc(s.title)}</a></li>${s.subs.map(x => `<li class="lvl3"><a href="#${x.id}">${esc(x.title)}</a></li>`).join('')}`).join('')}</ul>`;
   // crumbs, the section nav and previous / next are layout, so they stay English
   const chain = []; for (let p = P.parent; p; p = PAGES[p].parent) chain.unshift(p);
+  const hub = D.sections[P.group] && !PAGES[D.sections[P.group].root] ? [`<a href="#${D.sections[P.group].root}">${esc(D.sections[P.group].title)}</a>`] : [];
   const advG = ADV_PAGE_GROUPS[P.group], advUp = advG ? [`<a href="${esc(advLast)}">Adventures</a>`, `<a href="#adventures?g=${advG}">${esc(ADV_GROUPS[advG])}</a>`] : [];
-  $('#crumbs').innerHTML = li('<a href="#home">Home</a>', ...advUp, ...chain.map(p => plink(p)), `<span aria-current="page">${esc(P.title)}</span>`);
+  $('#crumbs').innerHTML = li('<a href="#home">Home</a>', ...advUp, ...hub, ...chain.map(p => plink(p)), `<span aria-current="page">${esc(P.title)}</span>`);
   $('#sectionNav').innerHTML = sectionNav(id);
-  $('#sectionNav').setAttribute('aria-label', advG ? 'Adventures' : 'Second Edition');
-  $('#pdfLink').parentNode.hidden = !!advG;  // the Second Edition PDFs; a module's print and PDF links open its page
+  $('#sectionNav').setAttribute('aria-label', advG ? 'Adventures' : GROUP_NAME[P.group]);
+  $('#pdfLink').parentNode.hidden = !!advG || !!D.sections[P.group];  // the Second Edition PDFs; a module's print and PDF links open its page
   const drawer = $('#drawerExtra .section-nav'); if (drawer) drawer.innerHTML = sectionNav(id);
   const order = D.order[P.group] || D.order.index, i = order.indexOf(id), prev = order[i - 1], next = order[i + 1];
   $('#pager').innerHTML = (prev ? `<a class="prev" href="#${prev}"><small>Previous</small>${esc(PAGES[prev].title)}</a>` : '<span></span>')
     + (next ? `<a class="next" href="#${next}"><small>Next</small>${esc(PAGES[next].title)}</a>` : '');
   alignTables();
   scrollableTables();
+  builderDecorate();
   $('#editLink').href = C.edit; $('#liveLink').href = C.url;
   $('#liveLink').textContent = !T ? 'Open on cairnrpg.com' : Lg.site ? `Open on ${Lg.site}` : 'Open on GitHub';
   const credit = $('#l10nCredit');
@@ -1285,6 +1731,14 @@ function placeOf(id) {
   const root = id === hit.page, shownAs = langOf(savedLang).pages[hit.page] ? savedLang : 'en';
   return {page: hit.page, code: root || hit.langs.includes(shownAs) ? savedLang : hit.langs.includes('en') ? 'en' : hit.langs[0]};
 }
+// #cbCallout sits right under the title, so on phones the button lands under both
+const placeToc = () => {
+  const f = $('#toc').contains(document.activeElement) && document.activeElement;
+  (WIDE.matches ? $('#sectionNav') : $('#cbCallout')).after($('#toc'));
+  // moving a node drops its focus: hand it to what's still shown (phones hide the list, wider hides the toggle)
+  if (f) (f.checkVisibility() ? f : WIDE.matches ? $('#tocList a') : $('#tocToggle')).focus({preventScroll: true});
+};
+placeToc(); WIDE.addEventListener('change', placeToc);
 $('#tocToggle').addEventListener('click', () => {
   const open = $('#tocToggle').getAttribute('aria-expanded') !== 'true';
   $('#tocToggle').setAttribute('aria-expanded', String(open)); $('#tocList').hidden = !open;
@@ -1300,15 +1754,16 @@ addEventListener('scroll', () => { if (tick || $('#view-rules').hidden) return; 
 // ---------- monsters index
 const M = D.monsters;
 const letterOf = m => m.name.charAt(0).toUpperCase();
+const untag = h => h.replace(/<[^>]+>/g, '');  // the attack and bullets are HTML (dice are buttons): search their words
 const rule = '<div class="book-rule both" aria-hidden="true"></div>';
 let mqSay;
 function renderMonsters() {
   const q = $('#mq').value.trim().toLowerCase();
-  const hits = M.filter(m => !q || (m.name + ' ' + m.stats.flat().join(' ') + ' ' + m.attack + ' ' + m.bullets.join(' ')).toLowerCase().includes(q));
+  const hits = M.filter(m => !q || (m.name + ' ' + m.stats.flat().join(' ') + ' ' + untag(m.attack) + ' ' + m.bullets.map(untag).join(' ')).toLowerCase().includes(q));
   const letters = [...new Set(hits.map(letterOf))];
   // the rail lists every letter that has monsters, as in the bestiary sheet; a letter the filter empties is greyed out
   $('#az').innerHTML = ALL_LETTERS.map(l => letters.includes(l) ? `<li><a href="#m-${l}" data-l="${l}" aria-label="Monsters starting with ${l}">${l}</a></li>` : `<li aria-hidden="true"><span>${l}</span></li>`).join('');
-  const stat = ([l, v]) => `<span class="stat"><span class="dot" aria-hidden="true">•</span><span class="l">${l}</span> <b>${v}</b></span>`;
+  const stat = ([l, v]) => `<span class="stat"><span class="dot" aria-hidden="true">•</span><b>${v}</b> <span class="l">${l}</span></span>`;  // "10 HP", as Cairn writes it
   $('#monsterList').innerHTML = letters.map(l => `<div class="letter-group" id="m-${l}" tabindex="-1">${
     hits.filter(m => letterOf(m) === l).map(m => `<article class="monster"><h3><a href="${esc(m.href)}">${esc(m.name)}</a></h3>${rule}<p class="stats">${m.stats.map(stat).join('')}</p>${m.attack ? `<p class="attack">${m.attack}</p>` : ''}${m.bullets.length ? `<ul>${li(...m.bullets)}</ul>` : ''}</article>`).join('')}</div>`).join('')
     || '<p class="muted">No monsters match.</p>';
@@ -1362,7 +1817,8 @@ document.fonts.ready.then(spy);
 // the Core Rules entries follow the language being read, so a hit never switches it
 // l: the translation a hit's title comes from, so the results list can mark its language
 const rulesIndex = () => Object.keys(PAGES).flatMap(id => { const P = PAGES[id], Lg = langOf(savedLang), C = Lg.pages[id] || P, l = C === P ? null : Lg;
-  return [...(isAdvPage(id) ? [] : [{t: C.title, k: GROUP_NAME[P.group], h: '#' + id, l}]), ...C.sections.flatMap(s => [{t: s.title, k: C.title, h: '#' + s.id, l, lk: l}, ...s.subs.map(x => ({t: x.title, k: C.title + ' · ' + s.title, h: '#' + x.id, l, lk: l}))])]; });
+  const sl = l || (P.lang ? {code: P.lang, dir: 'ltr'} : null);  // a page the repo publishes in another language: its headings are in it, its title isn't
+  return [...(isAdvPage(id) ? [] : [{t: C.title, k: GROUP_NAME[P.group], h: '#' + id, l}]), ...C.sections.flatMap(s => [{t: s.title, k: C.title, h: '#' + s.id, l: sl, lk: l}, ...s.subs.map(x => ({t: x.title, k: C.title + ' · ' + s.title, h: '#' + x.id, l: sl, lk: l}))])]; });
 const inLang = (l, text) => l ? `<span lang="${l.code}" dir="${l.dir}">${esc(text)}</span>` : esc(text);
 const INDEX_REST = [
   {t: 'Adventures', k: 'Catalog', h: '#adventures'},
@@ -1445,6 +1901,757 @@ $('.skip').addEventListener('click', e => { e.preventDefault(); $('#main').focus
 $('#primaryNav').addEventListener('click', () => closeMenu());
 $('#drawerExtra').addEventListener('click', e => { if (e.target.closest('a')) closeMenu(); });
 
+// ---------- notices: notify('Roll history cleared.') or notify(message, {kind: 'error'}). Above the builder code, which
+// can resume on load and move them
+const notices = $('#notices'), NOTICE_MS = 5000, NOTICE_MAX = 3, NOTICE_ICON = {success: '✓', error: '!', info: 'i'};
+const liveNotices = () => [...notices.querySelectorAll('.notice:not(.is-leaving)')];
+// re-showing a manual popover puts it back on top, over a drawer or modal opened since; hiding it drops focus, so it's put back
+function restackNotices() {
+  const open = notices.matches(':popover-open');
+  if (!liveNotices().length) { if (open) notices.hidePopover(); return; }
+  const had = notices.contains(document.activeElement) && document.activeElement;
+  if (open) notices.hidePopover();
+  notices.showPopover();
+  if (had) had.focus();
+}
+function dismissNotice(card, animate = true) {
+  clearTimeout(card.timer);
+  if (card.contains(document.activeElement)) {
+    // focus goes back where it was when the notice came, unless that's gone, hidden or behind the builder's modal
+    const walk = $('#cbWalk'), shown = el => el?.isConnected && !el.disabled && el.checkVisibility({opacityProperty: true, visibilityProperty: true});
+    const tries = [card.from, ...(walk.open ? ['#cbRoll', '#cbNext', '#cbClose'] : ['#diceBtn']).map(q => $(q))]
+      .filter(el => shown(el) && el !== document.body && !notices.contains(el) && (!walk.open || walk.contains(el)));
+    tries.find(el => { el.focus(); return document.activeElement === el; });
+  }
+  if (animate) card.classList.add('is-leaving');
+  const anims = card.getAnimations();
+  Promise.all(anims.map(a => a.finished)).catch(() => {}).then(() => { card.remove(); if (!notices.children.length) restackNotices(); });
+  if (!animate) card.classList.add('is-leaving');
+}
+function notify(message, {kind = 'success'} = {}) {
+  // the cards are hidden from screen readers; these always-rendered regions say it (cleared first, so a repeat is heard)
+  const say = $(kind === 'error' ? '#noticeAlert' : '#noticeSay');
+  // a frame is too short for some screen readers to hear the clear; messages in the same moment are said together
+  say.pending = [...(say.pending || []), message]; say.textContent = ''; clearTimeout(say.timer);
+  say.timer = setTimeout(() => { say.textContent = say.pending.join(' '); say.pending = []; }, 100);
+  for (const old of liveNotices()) if (old.dataset.msg === message) dismissNotice(old, false);
+  const card = document.createElement('div');
+  card.className = 'notice'; card.dataset.kind = kind; card.dataset.msg = message; card.from = document.activeElement;
+  card.innerHTML = '<span class="notice-icon" aria-hidden="true"></span><p aria-hidden="true"></p><button class="btn-icon" type="button">✕</button>';
+  card.firstChild.textContent = NOTICE_ICON[kind] || NOTICE_ICON.info;
+  card.querySelector('p').textContent = message;
+  const x = card.querySelector('button'); x.setAttribute('aria-label', `Dismiss: ${message}`);
+  x.addEventListener('click', () => dismissNotice(card));
+  card.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dismissNotice(card); } });  // without closing the builder's modal too
+  const arm = () => { clearTimeout(card.timer); if (kind !== 'error') card.timer = setTimeout(() => dismissNotice(card), NOTICE_MS); };
+  for (const ev of ['pointerenter', 'focusin']) card.addEventListener(ev, () => clearTimeout(card.timer));
+  card.addEventListener('pointerleave', () => { if (!card.contains(document.activeElement)) arm(); });
+  card.addEventListener('focusout', e => { if (!card.contains(e.relatedTarget) && !card.matches(':hover')) arm(); });
+  notices.prepend(card);
+  for (const extra of liveNotices().slice(NOTICE_MAX)) dismissNotice(extra, false);
+  restackNotices(); arm();
+}
+
+// ---------- character builder: "Roll a Character right now!" on Character Creation (data: D.builder, from the build).
+// A full-screen walkthrough rolls each step with the dice (CairnDice), and Next locks the result in. The finished
+// character fills the official Fillable Letter sheet (pdf-lib, loaded on first use).
+const CB = D.builder, CB_KEY = 'cairn-builder';
+let cb = null;  // {i: step index, v: {step id: rolled total}, edits: {review field: text}, sheet, active}
+try { cb = JSON.parse(localStorage.getItem(CB_KEY)); } catch {}
+const cbSave = () => { try { cb ? localStorage.setItem(CB_KEY, JSON.stringify(cb)) : localStorage.removeItem(CB_KEY); } catch {} };
+const ccEl = id => document.getElementById('character-creation-' + id);
+const cbBg = () => cb?.v.bg ? CB.backgrounds[cb.v.bg - 1] : null;
+const cbRow = t => { const b = cbBg(); return b && cb.v['t' + t] ? b.tables[t].rows[cb.v['t' + t] - 1] : null; };
+const cbBond = k => cb.v[k] ? CB.bonds[cb.v[k] - 1] : null;
+const TYPED = ['name', 'age'];  // the steps with a type-your-own field
+const CB_AGE_MSG = 'Type the age in digits, like 34.';  // the Age step's and a phone review's error
+const cbTyped = id => (cb.edits?.[id] || '').trim();  // what the player typed for one (or edited at the review)
+const cbTraitsIn = v => CB.traits.filter((t, i) => v?.[i]).length;
+const cbAge = () => cbTyped('age') || cb.v.age || '';  // typed (or edited at the review) beats rolled
+const cbFx = () => [cbBg(), cbRow(0), cbRow(1), cbBond('bond'), cbBond('bond2')].map(x => x?.fx).filter(Boolean);
+const tableAfter = h => { for (let el = h?.nextElementSibling; el && !/^H[1-6]$/.test(el.tagName); el = el.nextElementSibling) { const t = el.matches('table') ? el : el.querySelector('table'); if (t) return t; } return null; };
+// a d-table written as column pairs (| d20 | Background | d20 | Background |): the rolled number's cell and its entry
+const pairCells = (table, n) => { for (const r of table ? table.tBodies[0].rows : []) { const c = [...r.cells]; for (let i = 0; i < c.length - 1; i += 2) if (c[i].textContent.trim() === String(n)) return [c[i], c[i + 1]]; } return []; };
+const rowCells = (table, n) => { const r = table?.tBodies[0].rows[n - 1]; return r ? [...r.cells] : []; };
+const ATTR = [['str', 'Strength (STR)'], ['dex', 'Dexterity (DEX)'], ['wil', 'Willpower (WIL)']];
+const firstSentence = t => (t || '').split(/(?<=[.!?])\s/)[0];
+// each step: what to roll, a line saying so (tip), and the sheet fields it fills (fill),
+// which wait highlighted on the stage
+const bondStep = (id, label, tip) => ({id, label, tip, dice: '1d20', fill: ['bonds'], hit: n => rowCells(tableAfter(ccEl('bonds')), n), say: n => firstSentence(CB.bonds[n - 1].text)});
+function cbSteps() {
+  const fx = cb ? cbFx() : [], b = cbBg();
+  const s = [{id: 'bg', label: 'Background', tip: 'Roll a d20: the number picks your background from the table.', dice: '1d20', fill: ['background'],
+    hit: n => pairCells(tableAfter(ccEl('backgrounds')), n), say: n => CB.backgrounds[n - 1].name}];
+  // the background's own area first: what you fight with, your gear and gold, then its tables (the first on Inventory, the
+  // second on Notes), so the sheet's focus moves through one area at a time
+  s.push({id: 'arms', label: 'Armor and weapon', tip: 'What you fight and protect yourself with. It’s already on your sheet.', fill: [],
+    hit: () => []});
+  s.push({id: 'gold', label: 'Gold', tip: 'Roll 3d6 for your gold. Your background’s gear is already on your sheet.', dice: '3d6', fill: ['gold'],
+    hit: () => [], say: n => n + 'gp'});
+  for (const t of [0, 1]) s.push({id: 't' + t, area: t ? 'notes' : 'inv', label: b ? b.tables[t].title.replace(/\s*Roll 1d6:?$/i, '') : 'Background table', tip: 'Roll a d6 on your background’s table. What it gives you goes on your sheet.',
+    dice: '1d6', fill: [], hit: n => rowCells(tableAfter($('#cb-t' + t)), n), say: n => b.tables[t].rows[n - 1].text.split(/(?<=[.!?])\s|\s—\s/)[0]});
+  for (const [k, l] of ATTR) s.push({id: k, label: l, tip: `Roll 3d6 for your ${l.replace(/ \(.*/, '')}.`, dice: '3d6', fill: [k], hit: () => [], say: n => String(n)});
+  s.push({id: 'swap', kind: 'swap', label: 'Swap two attributes?', tip: 'You may swap any two attributes, or keep them as rolled.', fill: [], hit: () => []});
+  s.push({id: 'hp', label: 'Hit Protection', tip: 'Roll a d6 for your Hit Protection (HP).', dice: '1d6', fill: ['hp'], hit: () => [], say: n => n + ' HP'});
+  if (fx.some(f => f.hp)) s.push({id: 'hp2', label: 'Bonus HP (from your background)', tip: 'Your background adds a d4 to your HP.', dice: '1d4', fill: ['hp'],
+    hit: () => [], say: n => '+' + n + ' HP'});
+  // the traits: all eight in one 8d10 (one die per table, in the book's order), or with the toggle off one d10 at a time
+  const all = cb?.allTraits !== false, next = CB.traits.findIndex((t, i) => !cb?.v.traits?.[i]);
+  s.push({id: 'traits', label: 'Traits', dice: all ? '8d10' : '1d10', fill: CB.traits.map((t, i) => 'traits.' + i),
+    tip: all ? 'Roll 8d10: one die for each trait table, in order from Physique to Vice.' : next < 0 ? 'All eight rolled. Roll again to start over.'
+      : `Roll a d10 for ${CB.traits[next].name}: one table at a time, Physique to Vice.`,
+    hit: v => CB.traits.flatMap((t, i) => pairCells(tableAfter(ccEl(t.name.toLowerCase())), v[i])),
+    say: v => { const n = cbTraitsIn(v); return n === 8 && all ? '8 traits rolled: they’re on your sheet' : all ? `${n} of 8 traits rolled` : `${CB.traits[n - 1].name}: ${CB.traits[n - 1].values[v[n - 1] - 1]}`; }});
+  s.push({id: 'age', label: 'Age', tip: 'Roll 2d20 and add 10 for your age, or type your own.', dice: '2d20+10', fill: ['traits.8'], hit: () => [], say: n => n + ' years old'});
+  s.push(bondStep('bond', 'Bond', 'Roll a d20 for a bond: someone or something that ties you to the world.'));
+  if (fx.some(f => f.bonds)) s.push(bondStep('bond2', 'Second bond (from your background)', 'Your background gives you a second bond. Roll another d20.'));
+  const forced = fx.some(f => f.omen);
+  s.push({id: 'omen', label: forced ? 'Omen (your background calls for one: keep it to yourself)' : 'Omen (if you are the youngest)', dice: '1d20', optional: !forced, fill: ['omen'],
+    tip: forced ? 'Roll a d20 for an omen. Only you and the Warden should know it.' : 'Only the youngest character in your group rolls an omen. Otherwise, skip it.',
+    hit: n => rowCells(tableAfter(ccEl('omens')), n), say: n => firstSentence(CB.omens[n - 1].text)});
+  s.push({id: 'name', label: 'Name', tip: 'Roll a d10 for your name, from your background’s list, or type your own.', dice: '1d10', fill: ['name'],
+    hit: n => [document.querySelectorAll('#cb-names-list li')[n - 1]], say: n => b.names[n - 1]});
+  s.push({id: 'review', kind: 'review', label: 'Review and print', tip: 'Your sheet is filled in. Change anything on it, then print it.', hit: () => []});
+  return s;
+}
+const cbAttrs = () => { const a = {str: cb.v.str, dex: cb.v.dex, wil: cb.v.wil}, sw = cb.v.swap; if (sw) [a[sw[0]], a[sw[1]]] = [a[sw[1]], a[sw[0]]]; return a; };
+
+// an item as the sheet writes it: its name and first bracket, without "petty" or "bulky"
+const cbItemLabel = it => (it.full ? it.full.replace(/^([^(]*\([^)]*\)).*$/, '$1') : it.name).replace(/,?\s*_?(petty|bulky)_?(?=\s*[,)])/gi, '').replace(/\(\s*,\s*/g, '(').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim();
+const WEAPON = /\(\s*(d(?:4|6|8|10|12)[^,)]*)/;
+const cbWeapons = b => b.items.flatMap(it => {
+  if (it.from_table) return [`${it.name} (from your tables)`];
+  const m = (it.full || '').match(WEAPON); return m ? [`${it.name} · ${m[1].trim()}`] : []; });
+// ---------- the character, as sheet values
+function cbCharacter() {
+  const b = cbBg(), fx = cbFx(), a = cbAttrs(), out = {warnings: [], notes: []};
+  if (!b) return null;
+  out.name = b.names[cb.v.name - 1] || ''; out.background = b.name;  // the sheet's Name stays blank until it's rolled
+  out.str = a.str || ''; out.dex = a.dex || ''; out.wil = a.wil || '';
+  out.hp = (cb.v.hp || 0) + (cb.v.hp2 || 0) || '';
+  const gold = (cb.v.gold || 0) + fx.reduce((x, f) => x + (f.gold || 0), 0);
+  out.gold = gold || '';
+  // items: the gear (its "Bow (see table)" filled from the table), then what each rolled result and bond hands out
+  const bow = [cbRow(0), cbRow(1)].filter(Boolean).flatMap(r => r.fx.bow ? r.fx.items : []);
+  const items = [...b.items.flatMap(g => g.from_table ? bow : [g]), ...fx.flatMap(f => f.bow ? [] : (f.items || []))];
+  const label = cbItemLabel;
+  out.slots = []; out.petty = [];
+  for (const it of items) { if (it.petty) out.petty.push(label(it)); else { out.slots.push(label(it)); if (it.bulky) out.slots.push('(bulky)'); } }
+  if (gold >= 100) out.slots.push(`Coins (${gold}gp)`);  // 100gp or more isn't petty any more (Inventory Slots)
+  out.armor = Math.min(3, items.reduce((x, it) => x + (it.armor || 0), 0) + fx.reduce((x, f) => x + (f.armor || 0), 0)) || '';
+  out.traits = CB.traits.map((t, i) => ({label: t.name, value: cb.v.traits?.[i] ? t.values[cb.v.traits[i] - 1] : ''})).concat([{label: 'Age', value: cb.v.age || ''}]);
+  out.bonds = ['bond', 'bond2'].map(cbBond).filter(Boolean).map(x => x.text);
+  out.omen = cb.v.omen && cb.v.omen !== 'skip' ? CB.omens[cb.v.omen - 1].text : '';
+  // notes, in the order they matter; item descriptions last
+  out.notes.push('Backpack (holds 6 slots of items or Fatigue).');
+  if (cb.v.swap) out.notes.push(`Swapped ${cb.v.swap.map(k => k.toUpperCase()).join(' and ')}.`);
+  for (const t of [0, 1]) { const r = cbRow(t), tb = b.tables[t]; if (!r) continue;
+    if (tb.kind === 'result') out.notes.push(r.text.split(/\s(?:Take|Start with|You start with)\b/)[0].trim());
+    else out.notes.push(`${plainText(r.cells[0])}: ${r.cells.slice(1).map(plainText).join(' ')}`); }
+  for (const f of fx) if (f.marketplace) { out.notes.push(`Pick ${f.marketplace} from the Marketplace.`); out.warnings.push(`Your background lets you pick ${f.marketplace} from the Marketplace: add it to your inventory.`); }
+  out.notes.push(plainText(b.quote));  // the background's description, last: Print leaves it out first when Notes is full
+  if (out.slots.length >= 10) out.warnings.push(`That's ${out.slots.length} slots. A full inventory (all 10 slots) reduces you to 0 HP, and anything past 10 won't fit.`);
+  for (const k of Object.keys(cb.edits || {})) if (k !== 'age') out[k] = cb.edits[k];  // the player's edits win
+  out.traits[8] = {label: 'Age', value: cbAge()};  // Age is kept on its own, whatever a traits edit held
+  return out;
+}
+const plainText = md => (md || '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_]/g, '').trim();
+
+// ---------- on the page: the callout, the background panel, the tallies, the highlights and the review card
+function builderDecorate() {
+  const prose = $('#coreProse'), callout = $('#cbCallout');
+  if (shown.page !== 'character-creation') { callout.hidden = true; cbBar(); return; }
+  callout.hidden = false;
+  const en = shown.code === 'en', steps = cbSteps();
+  // one line: what it is on the left, the button on the right
+  callout.innerHTML = !en ? `<p class="cb-callout-title">Roll a Character right now! <span class="muted">(in English)</span></p><button class="btn btn-primary" type="button" data-cb="english">Start</button>`
+    : !cb ? `<p class="cb-callout-title">Roll a Character right now!</p><button class="btn btn-primary" type="button" data-cb="start">Start</button>`
+    : `<p class="cb-callout-title">Continue your character <span class="muted">· Step ${Math.min(cb.i + 1, steps.length)} of ${steps.length}</span></p><div class="cb-callout-btns"><button class="btn btn-secondary" type="button" data-cb="reset">Start over</button><button class="btn btn-primary" type="button" data-cb="start">Continue</button></div>`;
+  if (!en || !cb) { cbBar(); return; }
+  const b = cbBg();
+  if (b) {  // the rolled background's own names, gear and tables, so the next steps roll right here
+    const P = PAGES[b.id], strip = h => h.replace(/ id="[^"]*"/g, '').replace(/ tabindex="-1"/g, '');
+    const sec = t => (P.sections.find(s => s.title === t) || {html: ''}).html, tabs = P.sections.filter(s => s.title !== 'Names' && s.title !== 'Starting Gear');
+    const panel = `<section class="cb-panel" id="cbPanel" aria-labelledby="cb-bg-title"><h3 id="cb-bg-title" tabindex="-1">Your background: <a href="#${esc(b.id)}">${esc(b.name)}</a></h3>
+      <blockquote><p>${esc(b.quote)}</p></blockquote>
+      <h4 id="cb-names" tabindex="-1">Names</h4><ul class="cb-names" id="cb-names-list">${li(...b.names.map(esc))}</ul>
+      <h4 id="cb-gear" tabindex="-1">Starting gear</h4>${strip(sec('Starting Gear'))}
+      ${tabs.slice(0, 2).map((s, t) => `<h4 id="cb-t${t}" tabindex="-1">${esc(s.title)}</h4>${strip(s.html)}`).join('')}</section>`;
+    const bgTable = tableAfter(ccEl('backgrounds'));
+    (bgTable.closest('.table-wrap') || bgTable).insertAdjacentHTML('afterend', panel);
+  }
+  // the rolled rows, highlighted, as a trail of choices
+  for (const st of steps) if (st.hit && cb.v[st.id] && cb.v[st.id] !== 'skip') {
+    const rows = new Set();  // "Your roll" is said once per row, on its first lit cell
+    for (const c of st.hit(cb.v[st.id]).filter(Boolean)) { c.classList.add('cb-hit'); if (!rows.has(c.parentElement) && !c.querySelector('.cb-sr')) c.insertAdjacentHTML('afterbegin', '<span class="sr-only cb-sr">Your roll: </span>'); rows.add(c.parentElement); }
+  }
+  const review = cb.i >= steps.length - 1;  // the review card, once every step is done; the sheet is filled ahead of Print
+  // the portrait sheet is what the wide walkthrough's review edits, so Print fills it, unless a sheet was picked (an old
+  // save's "landscape" was only ever the default)
+  if (review && cb.active && !CB_NARROW.matches && !cb.sheetPicked) cb.sheet = 'portrait';
+  if (review) prose.insertAdjacentHTML('beforeend', cbReviewHtml());
+  scrollableTables();
+  if (cb.active) cbWalkRender(steps[Math.min(cb.i, steps.length - 1)]);
+  cbFitText();
+  cbBar();
+  if (review) setTimeout(cbPrepare, 100);  // the status region is new: write to it once it's in the tree, so it's announced
+}
+
+// ---------- the walkthrough: a full-screen dialog over the vines, one step at a time, with the step in a drawer.
+// Each step is a card built from D.builder; only the review is the page's own section, moved in so its ids stay single.
+// Every refresh rebuilds the page from scratch.
+const walk = $('#cbWalk'), walkMain = $('#cbWalkMain'), walkStep = $('#cbWalkStep');
+// the first start: the whole sheet while the vines grow, then (when they finish) the zoom to Background and the drawer
+let cbIntro = false, cbIntroTimer = 0, cbEnterTimer = 0;
+function cbEndIntro(cancel) {
+  if (!cbIntro) return;
+  cbIntro = false; clearTimeout(cbIntroTimer); walk.classList.remove('cb-intro');
+  if (cancel) return;
+  // phones: the footer and the step rise in from the bottom rather than appearing at once
+  if (CB_NARROW.matches && !REDUCE.matches) { walk.classList.add('cb-enter'); clearTimeout(cbEnterTimer); cbEnterTimer = setTimeout(cbEndEnter, 1200); }
+  const waiting = [walkMain, walk, document.body].includes(document.activeElement);
+  cbFocusSheet();
+  if (waiting) cbGo(true);
+  cbPlaceStep();  // the stage's own name back, and no tab stop, once focus has moved on
+}
+function cbEndEnter() { clearTimeout(cbEnterTimer); walk.classList.remove('cb-enter'); }
+walkStep.addEventListener('animationend', e => { if (e.animationName === 'cb-rise-far') cbEndEnter(); });
+// the vines' last column (cb-v6) finishes at 5s; timers cover a missed event
+walk.querySelector('.cb-walk-vines').addEventListener('animationend', e => { if (e.animationName === 'cb-v6') { walk.classList.remove('cb-grow'); cbEndIntro(); } });
+function cbWalkRender(st) {
+  const grow = !cb.grown && st.id === 'bg' && !REDUCE.matches;
+  if (grow) { cbIntro = true; walk.classList.add('cb-intro'); clearTimeout(cbIntroTimer); cbIntroTimer = setTimeout(() => cbEndIntro(), 6000); }
+  walkStep.textContent = '';
+  walk.classList.toggle('cb-at-review', st.kind === 'review');
+  if (st.kind === 'review') { const r = $('#cbReview'); if (r) walkStep.append(r); } else walkStep.innerHTML = cbStepCard(st);
+  cbSheetRender(st);
+  if (st.kind === 'review') cbSheetShow(false);
+  // the vines grow in the first time the first table shows; after that (and with reduced motion) they're simply there
+  if (!cb.grown) { cb.grown = true; cbSave(); if (grow) { walk.classList.add('cb-grow'); setTimeout(() => walk.classList.remove('cb-grow'), 6500); } }
+}
+// the source's Markdown in a card: links become their words, then bold and italics
+const mdInline = md => esc((md || '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^\w*])[_*]([^_*]+)[_*](?![\w*])/g, '$1<i>$2</i>');
+const RULE = {str: 'Roll 3d6 for each attribute, in order. You may swap two of them after.', dex: 'Roll 3d6 for each attribute, in order. You may swap two of them after.',
+  wil: 'Roll 3d6 for each attribute, in order. You may swap two of them after.', hp: 'Hit Protection is how well you avoid harm in a fight, not your health.',
+  hp2: 'Your background adds a d4 to your Hit Protection.', age: 'How old your character is.'};
+// each step is a card: a header (step, name, dice, what to do) and a body built from D.builder, its table as clean
+// numbered rows with the roll marked. The review is the page's own section, moved in, so its ids stay single.
+// the step's dice read as pills inside its tip ("Roll a d6 …"); a tip that never names them ends with one
+const DICE_IN_TEXT = /\b\d*d\d+(?:\+\d+)?\b/g;
+const cbTipDice = st => { const t = esc(st.tip), pill = d => `<span class="cb-dice">${d}</span>`;
+  return DICE_IN_TEXT.test(t) ? t.replace(DICE_IN_TEXT, pill) : st.dice ? `${t} ${pill(st.dice.replace(/^1d/, 'd'))}` : t; };
+function cbStepCard(st) {
+  const steps = cbSteps(), v = cb.v[st.id], b = cbBg(), own = ['arms', 'name', 'gold', 't0', 't1'].includes(st.id);
+  const rows = (list, rolled, cls = '') => `<ol class="cb-rows${cls}">` + list.map(([n, html]) => `<li data-n="${n}"${n === rolled ? ' class="cb-hit"' : ''}>`
+    + `<span class="cb-rn">${n === rolled ? '<span class="sr-only">Your roll: </span>' : ''}${n}</span><span class="cb-rt">${html}</span></li>`).join('') + '</ol>';
+  const val = (label, x, hit) => `<div class="cb-val${x ? '' : ' cb-val-empty'}${hit ? ' cb-hit' : ''}"><span class="cb-val-l">${label}</span><b>${x || '–'}</b></div>`;
+  const typedIn = (id, label, value, num) => `<div class="field cb-typed-in"><label for="cbTyped-${id}">${label}</label><input id="cbTyped-${id}" data-typed="${id}" autocomplete="off" enterkeyhint="next"`
+    + (num ? ' inputmode="numeric"' : '') + ` value="${esc(value)}">` + (num ? `<p class="cb-typed-err" id="cbTyped-${id}-err" role="status"></p>` : '') + '</div>';
+  let body = '';
+  if (own && !b) body = '';  // the background's own steps, before one is rolled (a resumed save)
+  // the rolled background's own description sits under its name, where the eye already is
+  else if (st.id === 'bg') body = rows(CB.backgrounds.map(x => [x.n, esc(x.name) + (x.n === v ? `<span class="cb-rdesc">${mdInline(x.quote)}</span>` : '')]), v, ' cb-rows-2');
+  else if (st.id === 'name') body = rows(b.names.map((x, i) => [i + 1, esc(x)]), v, ' cb-rows-2')
+    + typedIn('name', 'Or type a name', cbCharacter()?.name || '');
+  else if (st.id === 'gold') body = `<h3 class="cb-sc-sub">Your starting gear</h3><ul class="cb-gear">${b.items.map(it => `<li>${esc(it.from_table ? it.full || it.name : cbItemLabel(it))}</li>`).join('')}</ul>`
+    + `<div class="cb-vals">${val('Gold', v && v + 'gp', !!v)}</div>`;
+  else if (st.id === 't0' || st.id === 't1') body = rows(b.tables[+st.id[1]].rows.map(r => [r.n, r.cells.length > 1  // a two-column row: its first cell heads the second
+    ? `<b class="cb-rh">${mdInline(r.cells[0])}</b> ${r.cells.slice(1).map(mdInline).join(' ')}` : mdInline(r.cells[0] ?? r.text)]), v);
+  else if (st.kind === 'swap') { const a = cbAttrs(); body = `<p class="cb-sc-rule">${cb.v.swap ? `Swapped ${cb.v.swap.map(k => k.toUpperCase()).join(' and ')}.` : 'Keep them as rolled, or swap two.'}</p><div class="cb-vals">${ATTR.map(([k]) => val(k.toUpperCase(), a[k], cb.v.swap?.includes(k))).join('')}</div>`; }
+  else if (st.id === 'age') body = `<p class="cb-sc-rule">${RULE.age}</p><div class="cb-vals">${val('Age', cbAge(), !!cbAge())}</div>` + typedIn('age', 'Or type an age', cbTyped('age'), true);
+  else if (RULE[st.id]) body = `<p class="cb-sc-rule">${RULE[st.id]}</p><div class="cb-vals">${val(st.id === 'hp2' ? '+HP' : st.id.toUpperCase(), v, !!v)}</div>`;
+  // armor and weapon, celebrated before the rest of the gear is listed
+  else if (st.id === 'arms') { const c = cbCharacter(), worn = b.items.filter(it => it.armor).map(it => esc(it.name)), wp = cbWeapons(b);
+    body = `<div class="cb-vals cb-arms"><div class="cb-val cb-hit"><span class="cb-val-l">Armor</span><b>${c.armor || 'None'}</b>${worn.length ? `<small>${worn.join(', ')}</small>` : ''}</div>`
+      + `<div class="cb-val cb-hit cb-val-list"><span class="cb-val-l">Weapon${wp.length > 1 ? 's' : ''}</span>${wp.map(w => `<b>${esc(w)}</b>`).join('')}</div></div>`
+      + (c.armor ? '' : '<p class="cb-sc-rule">Many backgrounds start without armor.</p>') + '<p class="cb-sc-note">Your background’s tables may add more.</p>'; }
+  else if (st.id === 'traits') body = `<div class="cb-traits">${CB.traits.map((t, k) => `<section class="cb-trait-b"><h3>${esc(t.name)}</h3>${rows(t.values.map((x, j) => [j + 1, esc(x)]), v?.[k], ' cb-rows-tight')}</section>`).join('')}</div>`;
+  else if (st.id === 'bond' || st.id === 'bond2') body = rows(CB.bonds.map(x => [x.n, mdInline(x.text)]), v);
+  else if (st.id === 'omen') body = (v === 'skip' ? '<p class="cb-skipped">Skipped</p>' : '') + rows(CB.omens.map(x => [x.n, mdInline(x.text)]), v);
+  return `<article class="cb-sc" aria-labelledby="cbScTitle"><header class="cb-sc-head"><p class="cb-sc-eye">Step ${steps.findIndex(x => x.id === st.id) + 1} of ${steps.length}${own && b ? ` · Your background: ${esc(b.name)}` : ''}</p>`
+    + `<div class="cb-sc-title"><h2 id="cbScTitle" tabindex="-1">${esc(st.label)}</h2>`
+    + (st.id === 'traits' ? `<label class="cb-switch"><input type="checkbox" role="switch" id="cbAllTraits" aria-describedby="cbScTip"${cb.allTraits !== false ? ' checked' : ''}>All 8d10<span class="cb-switch-ui" aria-hidden="true"></span></label>` : '') + '</div>'
+    + `<p class="cb-sc-tip" id="cbScTip">${cbTipDice(st)}</p></header><div class="cb-sc-body">${body}</div></article>`;
+}
+let cbSheetLast = '';  // the newest filled row, for the footer's sheet row
+// the sheet so far: phones list it in the footer's panel, wider screens fill in the portrait sheet beside the step
+const cbSheetRender = st => { if (CB_NARROW.matches) $('#cbSheetList').innerHTML = st.kind === 'review' ? '' : cbSummary(st); else cbStageRender(st); };
+// phones: the footer's "Your sheet" row opens the list full screen; the step and the footer behind it go inert
+function cbSheetShow(open) {
+  const panel = $('#cbSheetPanel'); if (panel.hidden === !open) return;
+  panel.hidden = !open; $('.cb-walk-in').inert = open; $('#cbSheetBtn').setAttribute('aria-expanded', String(open));
+  if (open) { $('#cbSheetCollapse').focus({preventScroll: true}); $('#cbSheetList .cb-now')?.scrollIntoView({block: 'center', behavior: 'instant'}); }
+  else if (walk.open && CB_NARROW.matches) $('#cbSheetBtn').focus({preventScroll: true});  // going wide, the change handler places focus
+}
+$('#cbSheetBtn').addEventListener('click', () => cbSheetShow(true));
+$('#cbSheetCollapse').addEventListener('click', () => cbSheetShow(false));
+// Escape closes the panel only, not the walkthrough, wherever focus is (even dropped to the body); the dialog's cancel is the backstop
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#cbSheetPanel').hidden) { e.preventDefault(); e.stopPropagation(); cbSheetShow(false); } });
+walk.addEventListener('cancel', e => { if (!$('#cbSheetPanel').hidden) { e.preventDefault(); cbSheetShow(false); } });
+// the sheet so far: a row per result in the order they were rolled; the current step's row waits, dashed
+function cbSummary(cur) {
+  const steps = cbSteps(), at = steps.findIndex(x => x.id === cur.id), c = cbCharacter(), b = cbBg(), rows = [];
+  cbSheetLast = '';
+  const row = (label, value, now, under = false) => {  // under: a row under another (the gear, under Gold), never the newest
+    const v = value == null || value === '' ? '' : String(value); if (v && !under) cbSheetLast = `${label}: ${v}`;
+    const fresh = !cbInkQuiet && v && label in cbInk && cbInk[label] !== v; cbInk[label] = v;
+    rows.push(`<div class="cb-sum-row${now ? ' cb-now' : ''}${now && !v ? ' cb-want' : ''}${fresh ? ' cb-new' : ''}"><dt>${esc(label)}</dt><dd>${v ? esc(v) : '<span class="cb-sum-empty">—</span>'}</dd></div>`);
+  };
+  for (const st of steps.slice(0, at + 1)) {
+    const v = cb.v[st.id], now = st.id === cur.id, skip = v === 'skip';
+    if (!now && v == null && st.dice && !(TYPED.includes(st.id) && cbTyped(st.id))) continue;  // a step with no dice keeps its row
+    const said = skip ? 'Skipped' : v != null && st.say ? st.say(v) : '';
+    if (st.id === 'bg') row('Background', c?.background, now);
+    else if (st.id === 'arms') row('Armor and weapon', [c.armor ? `Armor ${c.armor}` : 'No armor', ...cbWeapons(b)].join(' · '), now);
+    else if (st.id === 'name') row('Name', c?.name, now);
+    else if (st.id === 'gold') {
+      row('Gold', v ? c.gold + 'gp' : '', now);
+      // the gear as the sheet will hold it; an item a table hands out reads as the book has it until that table is rolled
+      const tablesRolled = cb.v.t0 || cb.v.t1;
+      const held = c.slots.reduce((a, x) => (x === '(bulky)' && a.length ? (a[a.length - 1] += ' (bulky)') : a.push(x), a), []);  // a bulky item's second slot
+      row('Gear', tablesRolled ? [...held, ...c.petty].join(', ') : b.items.map(it => it.from_table ? it.full || it.name : cbItemLabel(it)).join(', '), false, true);
+    }
+    else if (st.id === 't0' || st.id === 't1') row(st.label, said, now);
+    else if (ATTR.some(([k]) => k === st.id)) row(st.id.toUpperCase(), v ? c[st.id] : '', now);
+    else if (st.kind === 'swap') { if (cb.v.swap) row('Swap', `Swapped ${cb.v.swap.map(k => k.toUpperCase()).join(' and ')}`, now); else if (now) row('Swap', 'Keep as rolled, or swap two', now); }
+    else if (st.id === 'hp') row('HP', cb.edits?.hp != null ? cb.edits.hp : v || '', now);  // Bonus HP, when it comes, rewrites this row
+    else if (st.id === 'hp2') { const r = rows.findIndex(x => x.includes('<dt>HP</dt>')); if (r >= 0) rows.splice(r, 1); row('HP', cb.edits?.hp != null ? cb.edits.hp : `${cb.v.hp} + ${v || '—'}`, now); }
+    else if (st.id === 'traits') CB.traits.forEach((t, i) => row(t.name, v ? c.traits[i].value : '', now));
+    else if (st.id === 'bond' || st.id === 'bond2') row(st.id === 'bond' ? 'Bond' : 'Second bond', said, now);
+    else if (st.id === 'age') row('Age', cbAge(), now);
+    else if (st.id === 'omen') row('Omen', said, now);
+  }
+  return `<dl class="cb-sum">${rows.join('')}</dl>`;
+}
+// ---------- the sheet stage (760px and up): the official portrait sheet filling in, zoomed and spotlit on the step's
+// section, panning to the next on Next. The step itself moves into the drawer there; phones keep it in the main column.
+function cbPlaceStep() {
+  const wide = !CB_NARROW.matches, host = wide ? $('#cbDrawerBody') : walkMain;
+  if (walkStep.parentElement !== host) host.prepend(walkStep);
+  walkMain.setAttribute('aria-label', wide ? 'Your sheet' : 'This step'); wide ? walkMain.removeAttribute('tabindex') : walkMain.tabIndex = 0;
+}
+// each step's section of the portrait sheet, in points: its fields and its printed title (measured on the image), padded
+const PSEC = {name: [38, 232, 248, 284], bg: [340, 140, 566, 192], traits: [341, 190, 581, 290], age: [341, 190, 581, 290],
+  str: [316, 358, 550, 490], dex: [316, 358, 550, 490], wil: [316, 358, 550, 490], swap: [316, 358, 550, 490], hp: [36, 488, 294, 534], hp2: [36, 488, 294, 534],
+  gold: [345, 490, 585, 770], inv: [345, 490, 585, 698], notes: [34, 372, 296, 492], arms: [228, 486, 590, 702], bond: [40, 624, 266, 694], bond2: [40, 624, 266, 694], omen: [40, 684, 266, 750], review: [0, 0, 612, 792]};
+let cbSecNow = null, cbDims = [612, 792];  // the stage's sheet, in points: portrait while rolling; at the review, the one picked
+function cbStageRender(st) {
+  const c = cbCharacter() || {slots: [], petty: [], traits: [], bonds: [], notes: []}, edit = st.kind === 'review';
+  const want = edit ? [] : (st.fill || []).map(k => { const m = k.match(/^traits\.(\d)$/); return m ? 'ptraits.' + PTRAIT_GROUPS.findIndex(g => g.includes(+m[1])) : k; });
+  // the review previews the picked sheet, landscape or portrait, with the same data, editable
+  const land = edit && cb.sheet === 'landscape';
+  // Armor and weapon: the Armor box and each weapon's slots (a bulky one's second too) get a gold ring, filled as they are
+  const star = st.id !== 'arms' ? [] : ['armor', ...c.slots.flatMap((x, i) => WEAPON.test(x) || (x === '(bulky)' && WEAPON.test(c.slots[i - 1])) ? ['slots.' + i] : [])];
+  $('#cbPCard').innerHTML = land ? cbCard('sheet', c, true, []) : cbCard('portrait', c, edit, want, star);
+  cbDims = land ? [792, 612] : [612, 792];
+  cbSecNow = edit ? [0, 0, ...cbDims] : PSEC[st.area || st.id] || PSEC.review;
+  cbFocusSheet();
+}
+// the paper runs full bleed off the stage; wherever one of its own edges comes into view, that edge stops 66px in, so a band
+// of vines shows beyond it. The section is scaled to fill 60% of the stage (at most 1.8x) and centred; the review, and the
+// first start while the vines grow, fit the whole page 66px inside the stage. The glow sits on the section.
+const CB_PAD = 66;
+// a zoomed section never shows both of the paper's edges on one axis: it zooms in just enough that one edge sits 66px in
+// and the other runs flush
+const cbLift = (k, view, base) => base * k < view - CB_PAD ? (view - CB_PAD) / base : k;
+function cbFocusSheet() {
+  const stage = $('#cbStage'), sheet = $('#cbPSheet'), spot = $('#cbSpot'), W = stage.clientWidth, H = stage.clientHeight;
+  if (!W || !H || !cbSecNow) return;
+  const [PT_W, PT_H] = cbDims, bw = Math.min(W, H * PT_W / PT_H), bh = bw * PT_H / PT_W;
+  const [x0, y0, x1, y1] = cbIntro ? [0, 0, PT_W, PT_H] : cbSecNow, whole = x1 - x0 >= PT_W;  // what's framed
+  const rw = (x1 - x0) / PT_W * bw, rh = (y1 - y0) / PT_H * bh;
+  const k = whole ? Math.min((W - 2 * CB_PAD) / bw, (H - 2 * CB_PAD) / bh)
+    : cbLift(cbLift(Math.max(1, Math.min(1.8, .6 * W / rw, .6 * H / rh)), W, bw), H, bh);
+  const cx = (x0 + x1) / 2 / PT_W * bw, cy = (y0 + y1) / 2 / PT_H * bh;
+  sheet.style.width = bw + 'px';
+  // the section centred, then snapped: an edge that would show sits exactly 66px in, never a sliver; one that doesn't runs
+  // past, flush. Paper narrower than the stage less both bands (the whole page at the review) sits in the middle
+  const fit = (t, view, size) => size < view - 2 * CB_PAD ? (view - size) / 2 : t > 0 ? CB_PAD : t + size < view ? view - size - CB_PAD : t;
+  const tx = fit(W / 2 - cx * k, W, bw * k), ty = fit(H / 2 - cy * k, H, bh * k);
+  sheet.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${k.toFixed(3)})`;
+  const [g0, h0, g1, h1] = cbSecNow; spot.hidden = whole;
+  Object.assign(spot.style, {left: g0 / PT_W * 100 + '%', top: h0 / PT_H * 100 + '%', width: (g1 - g0) / PT_W * 100 + '%', height: (h1 - h0) / PT_H * 100 + '%'});
+  cbFitText(sheet);
+}
+// at any width the cards' words wrap differently as they resize, so their bonds and omens are fitted again (hidden cards are skipped)
+addEventListener('resize', () => { if (walk.open && !CB_NARROW.matches) { cbFocusSheet(); cbDiceBounds(false); } cbFitText(); });
+// the 3D dice roll inside the stage: their canvas takes the stage's box, and dice-box re-fits its world on resize
+function cbDiceBounds(announce = true) {
+  const d = $('#diceStage'), wide = walk.open && !CB_NARROW.matches, r = wide && $('#cbStage').getBoundingClientRect();
+  d.style.cssText = wide ? `inset:auto;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px` : '';
+  if (announce) dispatchEvent(new Event('resize'));
+}
+// a modal covers the dice, their result card and the tray, and leaves them inert, so while it's open they move into it
+// (a result card still up from a header roll is hidden: in the walkthrough, rolls show only on the dice and in the footer)
+let diceHome = null;
+function cbDiceIn(into) {
+  $('#noticeSay').textContent = $('#noticeAlert').textContent = '';  // re-inserting a filled alert can read it again
+  if (into && !diceHome) { $('#diceToast').hidden = true; const els = [$('#diceStage'), $('#diceToast').parentElement, $('#diceTray'), notices, $('#noticeSay'), $('#noticeAlert')]; diceHome = els.map(el => [el, el.parentNode, el.nextSibling]); walk.append(...els); }
+  if (!into && diceHome) { for (const [el, p, next] of diceHome.reverse()) p.insertBefore(el, next); diceHome = null; restackNotices(); }  // moving a shown popover hides it
+}
+// ✕, Escape and leaving the page all end here: progress is kept, the page is rebuilt whole, and focus goes back to Continue
+walk.addEventListener('close', () => {
+  cbEndIntro(true); cbEndEnter(); cbSheetShow(false); walk.classList.remove('cb-grow'); cbDiceIn(false); cbDiceBounds(); CairnDice.clear();
+  if (!cb?.active) return;
+  cb.active = false; cbSave();
+  if (view === 'rules' && shown.page === 'character-creation') { cbRefresh(); $('#cbCallout [data-cb="start"]')?.focus(); }
+});
+// on a phone the controls are a footer fixed to the bottom; the walkthrough keeps that much room free under the step
+const cbBarRoom = () => { walk.style.setProperty('--bar-h', $('#cbBar').offsetHeight + 'px'); walk.style.setProperty('--head-h', $('#cbDrawerHead').offsetHeight + 'px'); };
+const cbRoom = new ResizeObserver(cbBarRoom); cbRoom.observe($('#cbBar')); cbRoom.observe($('#cbDrawerHead'));  // phones: the fixed header and footer
+const walkScroller = () => CB_NARROW.matches ? $('.cb-walk-in') : $('#cbDrawerBody');  // what scrolls the step: the drawer, or (phones) the whole walkthrough
+
+// ---------- the bar
+function cbBar(say) {  // say: write the result line even while the name field has focus
+  const bar = $('#cbBar'), on = !!(cb && cb.active && view === 'rules' && shown.page === 'character-creation' && shown.code === 'en');
+  bar.hidden = !on;
+  if (on && !walk.open) { cbDiceIn(true); cbPlaceStep(); walk.showModal(); restackNotices(); cbFocusSheet(); cbDiceBounds(); }  // laid out once it's open
+  if (!on && walk.open) walk.close();
+  if (!on) return;
+  const steps = cbSteps(), st = steps[Math.min(cb.i, steps.length - 1)], v = cb.v[st.id], typed = TYPED.includes(st.id) && cbTyped(st.id), done = st.id === 'traits' ? cbTraitsIn(v) === 8 : !!v;
+  $('#cbTip').textContent = st.tip;
+  $('#cbStepNo').textContent = `Step ${cb.i + 1} of ${steps.length}`;
+  $('#cbStepName').textContent = st.label;
+  $('#cbDice').textContent = st.dice ? st.dice.replace(/^1d/, 'd') : '';
+  $('#cbDice').hidden = !st.dice;
+  const said = st.kind === 'swap' ? (cb.v.swap ? `Swapped ${cb.v.swap.map(k => k.toUpperCase()).join(' and ')}` : 'Keep them as rolled, or swap two.')
+    : st.kind === 'review' ? '' : v === 'skip' ? 'Skipped' : typed ? `<b>${esc(typed)}</b>` : v ? `<b>${esc(st.say(v))}</b>${Array.isArray(v) ? '' : ` <span class="muted">(rolled ${v})</span>`}` : '';
+  // a live region: rewriting the same result would read it again, and a name being typed is read once it's done, not per letter
+  if (said !== cbSaid && (say || !document.activeElement?.dataset?.typed)) $('#cbResult').innerHTML = cbSaid = said;
+  // the footer's sheet row: how much is filled, and the newest result (inked in when it changes, not per letter typed)
+  const todo = steps.filter(x => x.kind !== 'review'), filled = todo.filter((x, i) => x.id === 'traits' ? cbTraitsIn(cb.v.traits) === 8
+    : cb.v[x.id] != null || (TYPED.includes(x.id) && cbTyped(x.id)) || (!x.dice && i < cb.i)).length;
+  for (const n of document.querySelectorAll('.cb-sheet-n')) n.textContent = ` · ${filled} of ${todo.length} filled`;
+  for (const last of document.querySelectorAll('.cb-sheet-last')) if (last.textContent !== cbSheetLast) { last.textContent = cbSheetLast;
+    last.classList.remove('cb-new'); if (!cbInkQuiet && !document.activeElement?.dataset?.typed) { void last.offsetWidth; last.classList.add('cb-new'); } }
+  $('#cbRoll').hidden = !st.dice; $('#cbRoll').textContent = cbBusy ? 'Rolling…' : done && v !== 'skip' ? 'Roll again' : 'Roll'; $('#cbRoll').disabled = cbBusy;
+  // once a step is rolled, Next is the way on: it takes the primary style, and Roll again steps back
+  const rolled = !!st.dice && (done || !!typed), ready = rolled || !st.dice;  // a typed value counts as rolled; traits, once all eight are in
+  $('#cbRoll').classList.toggle('btn-primary', !rolled); $('#cbRoll').classList.toggle('btn-secondary', rolled);
+  $('#cbNext').classList.toggle('btn-primary', ready); $('#cbNext').classList.toggle('btn-secondary', !ready);
+  $('#cbNext').hidden = st.kind === 'review'; $('#cbNext').disabled = cbBusy || !ready;
+  $('#cbNext').textContent = st.kind === 'swap' && !cb.v.swap ? 'Keep as rolled' : 'Next';
+  $('#cbSkip').hidden = !st.optional || !!v; $('#cbSkip').disabled = cbBusy;
+  $('#cbBack').disabled = cbBusy || cb.i === 0;
+  $('#cbSwap').hidden = st.kind !== 'swap';
+  if (st.kind === 'swap') $('#cbSwap').innerHTML = [['str', 'dex'], ['str', 'wil'], ['dex', 'wil']].map(p => `<button class="btn-icon cb-swap" type="button" data-swap="${p}" aria-pressed="${String(cb.v.swap) === String(p)}">Swap ${p.map(k => k.toUpperCase()).join(' <span aria-hidden="true">↔</span><span class="sr-only">and</span> ')}</button>`).join('');
+  cbBarRoom();  // its height changes with the step (and the observer may lag)
+}
+const cbMotion = () => REDUCE.matches ? 'instant' : 'smooth';
+function cbGo(focus) {  // a new step starts at its top, with focus on its heading
+  walkScroller().scrollTo({top: 0, behavior: 'instant'});
+  if (cbIntro) {  // the drawer is hidden, so the stage holds focus until the intro ends
+    if (!focus) return;
+    walkMain.tabIndex = -1; walkMain.setAttribute('aria-label', (CB_NARROW.matches ? '' : 'Your sheet. ') + 'The first step opens in a moment'); walkMain.focus({preventScroll: true});
+    return;
+  }
+  const h = walkStep.querySelector('h1, h2, h3, h4');
+  if (focus && h) { if (!h.hasAttribute('tabindex')) h.tabIndex = -1; h.focus({preventScroll: true}); }
+}
+// the page and the step are rebuilt; the step's own scroll stays where it was (Roll again, Swap)
+function cbRefresh() { const y = scrollY, sc = walkScroller(), t = sc.scrollTop; walkStep.textContent = ''; renderPage('character-creation', 'en'); scrollTo({top: y, behavior: 'instant'}); sc.scrollTop = t; }
+let cbBusy = false, cbSaid = null;
+async function cbRollStep() {
+  if (cbBusy) return;
+  const st = cbSteps()[cb.i]; if (!st || !st.dice) return;
+  cbBusy = true; for (const id of ['cbRoll', 'cbNext', 'cbBack', 'cbSkip']) $('#' + id).disabled = true; $('#cbRoll').textContent = 'Rolling…';
+  try {
+    const show3d = $('#dice3d').checked && !$('#dice3d').disabled;  // Settings' 3D switch (off, or no WebGL: plain rolls)
+    let r = await CairnDice.roll(st.dice, {label: st.label, show3d});
+    if (st.id === 'bond2') for (let n = 0; r.total === cb.v.bond && n < 5; n++) r = await CairnDice.roll(st.dice, {label: st.label + ' (again: same bond)', show3d});
+    // traits keep each die, one per table: all eight at once, or (the toggle off) the next empty one, starting over once all are in
+    if (st.id === 'traits' && cb.allTraits === false) { const t = cbTraitsIn(cb.v.traits) === 8 ? [] : [...(cb.v.traits || [])], i = CB.traits.findIndex((x, j) => !t[j]); t[i] = r.total; cb.v.traits = CB.traits.map((x, j) => t[j] || null); }
+    else cb.v[st.id] = st.id === 'traits' ? r.groups[0].values : r.total;
+    if (TYPED.includes(st.id) && cb.edits) delete cb.edits[st.id];  // the roll replaces a typed value
+    if (st.id === 'bg') for (const k of ['name', 't0', 't1', 'hp2', 'bond2']) delete cb.v[k];  // a new background: its own rolls start over
+    if (st.id === 't0' || st.id === 't1' || st.id === 'bond') { const ids = cbSteps().map(s => s.id); for (const k of ['hp2', 'bond2']) if (!ids.includes(k)) delete cb.v[k]; }
+    if (/^(str|dex|wil)$/.test(st.id)) delete cb.v.swap;
+    cbSave(); cbSaid = null;  // every roll is said, even one that lands where the last did
+    cbRefresh();
+    // the rolled row comes into view with room round it; in the drawer, the table's last row takes it to its bottom, clear of the footer
+    const hit = walkStep.querySelector('.cb-hit');
+    if (hit && !hit.nextElementSibling && !CB_NARROW.matches) walkScroller().scrollTo({top: walkScroller().scrollHeight, behavior: cbMotion()});
+    else hit?.scrollIntoView({block: 'nearest', behavior: cbMotion()});
+    CairnDice.clear({fade: true});  // the row is lit: the dice step aside so it can be read
+  } finally { cbBusy = false; cbBar(); if (document.activeElement === document.body) $('#cbRoll').focus(); }  // disabling Roll dropped focus
+}
+// typing a name or an age: the sheet (or a phone's list) and the bar follow each letter; the step card stays, so the caret does
+walkStep.addEventListener('input', e => {
+  const id = e.target.dataset?.typed; if (!id) return;
+  let val = e.target.value.trim();
+  if (id === 'age') {  // a number, or nothing yet; the error is said once, when it appears
+    const bad = !!val && !/^\d+$/.test(val), err = $('#cbTyped-age-err');
+    if (bad) { e.target.setAttribute('aria-invalid', 'true'); e.target.setAttribute('aria-describedby', err.id); val = ''; } else { e.target.removeAttribute('aria-invalid'); e.target.removeAttribute('aria-describedby'); }
+    const say = bad ? CB_AGE_MSG : ''; if (err.textContent !== say) err.textContent = say;
+  }
+  if (val && cb.v[id]) { delete cb.v[id]; const hit = walkStep.querySelector('.cb-hit'); hit?.querySelector('.sr-only')?.remove(); hit?.classList.remove('cb-hit'); }
+  if (val) cbApplyEdit(id, val); else { delete cb.edits?.[id]; cbSave(); }
+  const box = id === 'age' && walkStep.querySelector('.cb-vals .cb-val');  // the card's Age box follows too
+  if (box) { box.querySelector('b').textContent = val || '–'; box.classList.toggle('cb-hit', !!val); box.classList.toggle('cb-val-empty', !val); }
+  const st = cbSteps()[cb.i];
+  cbInkQuiet = true; cbSheetRender(st); cbInkQuiet = false;
+  cbBar();
+});
+walkStep.addEventListener('change', e => {
+  if (e.target.id === 'cbAllTraits') { cb.allTraits = e.target.checked; cbSave(); cbRefresh(); $('#cbAllTraits').focus(); return; }
+  if (e.target.dataset?.typed && e.target.isConnected) cbBar(true); });
+walkStep.addEventListener('keydown', e => { if (!e.target.dataset?.typed || e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;  // 229: Safari's IME commit
+  e.preventDefault(); if (!$('#cbNext').disabled) { cbMove(1); return; }
+  $('#cbResult').textContent = `Roll, or type ${e.target.dataset.typed === 'age' ? 'an age' : 'a name'}, to go on.`; cbSaid = null; });
+function cbMove(d) {
+  CairnDice.clear();  // the next table starts clear
+  const n = cbSteps().length;
+  cb.i = Math.max(0, Math.min(n - 1, cb.i + d)); cbSave(); cbRefresh(); cbGo(true);
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-cb]');
+  if (c) {
+    if (c.dataset.cb === 'english') { renderPage('character-creation', 'en'); retitle(); history.replaceState(null, '', '#character-creation'); }
+    if (c.dataset.cb === 'reset' && confirm('Start a new character? This one will be cleared.')) { cb = null; cbSave(); cbRefresh(); $('#cbCallout button')?.focus(); }  // the walkthrough closed with it
+    if (c.dataset.cb === 'start' || c.dataset.cb === 'english') { cb = cb || {i: 0, v: {}, edits: {}, sheet: 'landscape'}; cb.active = true; cbSave(); cbRefresh(); cbGo(true); }
+  }
+  const sw = e.target.closest('[data-swap]');
+  if (sw) { const p = sw.dataset.swap.split(','); cb.v.swap = String(cb.v.swap) === String(p) ? null : p; cbSave(); cbRefresh();
+    $(`#cbSwap [data-swap="${sw.dataset.swap}"]`)?.focus(); }  // the buttons were re-rendered; keep focus on the one pressed
+});
+$('#cbRoll').addEventListener('click', cbRollStep);
+$('#cbNext').addEventListener('click', () => cbMove(1));
+$('#cbBack').addEventListener('click', () => cbMove(-1));
+$('#cbSkip').addEventListener('click', () => { const st = cbSteps()[cb.i]; cb.v[st.id] = 'skip'; cbSave(); cbMove(1); });
+$('#cbClose').addEventListener('click', () => walk.close());
+
+// ---------- review and print
+const SHEET = {
+  landscape: {slots: n => 'Slot.0.0.' + n, petty: n => 'Petty Items.0.' + n, pettyN: 7, traits: n => 'Traits1.' + n, traitsN: 10, bonds: n => 'Bonds.0.' + n, bondsN: 4, omens: n => 'Omens.0.' + n, omensN: 4, notes: 7, ruled: true},
+  portrait: {slots: n => 'Slot.' + n, petty: n => 'Petty Items.' + n, pettyN: 5, traits: n => 'Traits' + (n + 1), traitsN: 4, bonds: n => 'Bonds.' + n, bondsN: 3, omens: n => 'Omens.' + n, omensN: 3, notes: 7},
+};
+// ---------- the sheet's cards, cut from the official sheets, with the character written on them.
+// The review is the whole sheet, editable (a phone lists it instead: cbReviewList). Fields are the fillable PDF's own rects
+// in points, so what's typed lands where Print writes it.
+const CARDS = CB.cards, PX = CARDS.size[0] / 792;  // sheet pixels per point
+// [card, edit key, label, rect in points, line height in points (multi-line fields only), r/e: only while rolling or only in
+// the review]; a null label is MAX, a copy of CURRENT. The multi-line fields match the printed rules (measured on the image),
+// so each line of text sits just above one. In the review, the slots and traits are one box each, a line per item: their
+// rules are 19–24px apart, too close for one input per line (2.5.8).
+const SF = [['who', 'name', 'Name', [44, 168, 192, 186]], ['who', 'background', 'Background', [43, 211, 192, 225]],
+  // the score's own box only: the one under it is for the character's current state in play, kept blank
+  ...[['str', 110, 'STR'], ['dex', 175, 'DEX'], ['wil', 237, 'WIL'], ['hp', 307, 'HP']].map(([k, x, l]) => [k, k, l, [x, 288, x + 40, 314]]),
+  ['armor', 'armor', 'Armor', [441, 140, 464, 164]], ['petty', 'petty', 'Petty items', [376, 200.9, 468, 308], 15.1], ['petty', 'gold', 'Gold', [427, 324, 455, 350]],
+  ...[172, 192, 209, 226, 244, 261, 278, 295, 313, 331].map((y, i) => ['inventory', 'slots.' + i, 'Slot ' + (i + 1), [504, y, 665, y + 13], 0, 'r']),
+  ['inventory', 'slots', 'Inventory, one item per slot (line)', [504, 172.3, 665, 346], 17.5, 'e'],
+  ...[[213, 401, 331], [213, 415, 330], [213, 432, 331], [213, 448, 331], [226, 463, 325], [234, 476, 324], [242, 493, 327], [242, 510, 326], [247, 523, 322]]
+    .map(([x0, y, x1], i) => ['traits', 'traits.' + i, null, [x0, y, x1, y + 15], 0, 'r']),
+  // starts where the lowest rules do, clear of the skulls
+  ['traits', 'traits', 'Traits, one per line', [244, 400.9, 331, 560], 15.4, 'e'],
+  ['bonds', 'bonds', 'Bonds', [340, 401.4, 472, 465], 15.6], ['bonds', 'omen', 'Omen', [340, 493.5, 472, 558], 15.8], ['notes', 'notes', 'Notes', [488, 400.6, 708, 558], 15.8]];
+// landscape only: [right, down] in points, measured on the image, to set each field on its printed rule (multi-line boxes all drop 3)
+const LAND_NUDGE = {name: [0, 4.4], background: [0, 6.1], str: [-1.6, 2], dex: [0, 2], wil: [4.2, 2], hp: [0, 2], armor: [-2.6, 4.2]};
+// the portrait sheet's fields, from its fillable PDF (points, top-down); its traits are four lines of pairs, as Print writes them
+const SF_P = [['portrait', 'name', 'Name', [66, 248, 218, 266]], ['portrait', 'background', 'Background', [350, 171, 553, 184]],
+  ...[[218, 231], [235, 248], [251, 264], [268, 281]].map(([y0, y1], i) => ['portrait', 'ptraits.' + i, 'Traits', [351, y0, 571, y1], 0, 'r']),
+  ['portrait', 'ptraits', 'Traits, four lines of pairs (· between)', [351, 216, 571, 284], 16.7, 'e'],
+  // STR, DEX, WIL and HP fill only the box left of the slash: the one right of it is for the character's current state, in play
+  ...[['str', 389, 374, 394, 'STR'], ['dex', 390, 417, 437, 'DEX'], ['wil', 390, 459, 479, 'WIL']].map(([k, a, y0, y1, l]) => ['portrait', k, l, [a, y0, a + 35, y1]]),
+  ['portrait', 'hp', 'HP', [141, 500, 187, 526]], ['portrait', 'armor', 'Armor', [237, 590, 256, 607]],
+  ...[537, 551, 566, 581, 595, 610, 624, 639, 653, 668].map((y, i) => ['portrait', 'slots.' + i, 'Slot ' + (i + 1), [375, y, 547, y + 12.5], 0, 'r']),
+  ['portrait', 'slots', 'Inventory, one item per slot (line)', [375, 535, 547, 683], 14.6, 'e'],
+  ['portrait', 'petty', 'Petty items', [374, 709, 495, 765], 10.5], ['portrait', 'gold', 'Gold', [530, 723, 557, 749]],
+  ['portrait', 'bonds', 'Bonds', [49, 641, 254, 689], 15], ['portrait', 'omen', 'Omen', [50, 700, 256, 745], 13.3], ['portrait', 'notes', 'Notes', [44, 400, 262, 488], 11]];
+const PTRAIT_GROUPS = [[0, 1], [2, 3], [4, 5], [6, 7, 8]];
+// the portrait sheet's four trait lines; with blanks, an empty trait stays as "—" so an edited line maps back by position
+const cbPortraitTraits = (c, blanks) => PTRAIT_GROUPS.map(g => g.map(i => { const t = c.traits[i], v = t && t.value; return v ? (t.label === 'Age' ? 'Age ' + v : v) : blanks ? '—' : ''; }).filter(Boolean).join(' · '));
+const CB_NARROW = matchMedia('(max-width: 759px)');
+CB_NARROW.addEventListener('change', () => { if (!walk.open) return;
+  const a = document.activeElement, d = a?.dataset || {}, caret = d.typed && [a.selectionStart, a.selectionEnd];
+  const fromSheet = $('#cbSheetPanel').contains(a), sel = !walk.contains(a) || fromSheet || a === walkMain ? null : d.typed ? `[data-typed="${d.typed}"]` : d.edit ? `[data-edit="${d.edit}"]` : d.swap ? `[data-swap="${d.swap}"]` : a.id ? '#' + a.id : null;
+  cbEndIntro(true); cbEndEnter(); cbSheetShow(false); cbPlaceStep(); cbRefresh(); cbFocusSheet(); cbDiceBounds();
+  if (!sel) { if (fromSheet || a === walkMain) cbGo(true); return; }  // the sheet panel closed, or the stage's tab stop went: the step's heading
+  const f = walk.querySelector(sel);  // what had focus, rebuilt; or the step's heading
+  if (f) { f.focus({preventScroll: true}); if (caret) f.setSelectionRange(...caret); } else cbGo(true); });
+const cbVal = (c, k) => { const m = k.match(/^(slots|traits)\.(\d+)$/);
+  if (k === 'ptraits') return cbPortraitTraits(c, true).join('\n');
+  if (k.startsWith('ptraits.')) return cbPortraitTraits(c)[+k.slice(8)];
+  return m ? (m[1] === 'slots' ? c.slots[+m[2]] : c.traits[+m[2]]?.value) : k === 'slots' ? c.slots.slice(0, 10).join('\n')
+    : k === 'traits' ? c.traits.map(t => `${t.label}: ${t.value}`).join('\n') : Array.isArray(c[k]) ? c[k].join('\n') : c[k]; };
+const cbInk = {};  // what each field showed last, so a value the latest roll wrote fades in like ink
+let cbInkQuiet = false;  // set while a typed value redraws, so the field doesn't fade in again on every letter
+// a long bond or omen is set just small enough (down to three quarters) to fit its box whole. The line height stays on the
+// printed rules, so each line just holds more words. On a review card the text is in a textarea, which is what scrolls, so
+// that's what's measured. A card with no size yet (hidden) is fitted on a later call
+function cbFitText(root = document) {
+  for (const f of root.querySelectorAll('.cb-f-bonds, .cb-f-omen')) {
+    const el = f.querySelector('textarea') || f; if (!el.clientHeight) continue;
+    let fit = 1; f.style.setProperty('--fit', 1);
+    while (el.scrollHeight > el.clientHeight + 1 && fit > .75) { fit = +(fit - .05).toFixed(2); f.style.setProperty('--fit', fit); }
+  }
+}
+// a card (or 'sheet', the whole sheet) with its fields; read-only while rolling, inputs in the review
+function cbCard(n, c, edit, want, star = []) {
+  const r = n === 'sheet' ? [0, 0, ...CARDS.size] : n === 'portrait' ? [0, 0, ...CARDS.portrait] : CARDS.cards[n], w = r[2] - r[0], h = r[3] - r[1], pc = x => +(x * 100).toFixed(3) + '%';
+  const land = n !== 'portrait';
+  const field = ([, k, label, p, lh]) => {
+    const [x0, y0, x1, y1] = p.map(v => v * PX), i = +k.split('.')[1];
+    const nudge = land && (LAND_NUDGE[k] || lh && [0, 3]);
+    const pos = `left:${pc((x0 - r[0]) / w)};top:${pc((y0 - r[1]) / h)};width:${pc((x1 - x0) / w)};height:${pc((y1 - y0) / h)};--f:${lh ? 32 : Math.min(90, (y1 - y0) * .82).toFixed(1)}${lh ? ';--lh:' + (lh * PX).toFixed(1) : ''}`
+      + (nudge ? `;--dx:${(nudge[0] * PX).toFixed(1)};--dy:${(nudge[1] * PX).toFixed(1)}` : '');
+    const v = String(cbVal(c, k) ?? ''), trait = k.startsWith('traits.') ? (c.traits[i]?.label || CB.traits[i]?.name || 'Age') : '';
+    const score = /^(str|dex|wil|hp|armor|gold)$/.test(k);
+    const cls = `cb-fld${lh ? ' cb-multi' : ''}${y1 - y0 > 90 || score ? ' cb-big' : ''}${score ? ' cb-score' : ''} cb-f-${k.replace(/\./g, '-')}${star.includes(k) ? ' cb-star' : ''}`;  // the scores, Armor and Gold: bold, centred
+    if (!label && !trait) return `<span class="${cls} cb-max" style="${pos}" aria-hidden="true" data-mirror="${k}">${esc(v)}</span>`;
+    if (edit) return `<label class="${cls}" style="${pos}"><span class="sr-only">${label}</span>`
+      + (lh ? `<textarea data-edit="${k}"${k === 'slots' || k === 'traits' ? ' wrap="off"' : ''}>${esc(v)}</textarea>` : `<input data-edit="${k}" value="${esc(v)}">`) + '</label>';
+    const fresh = !cbInkQuiet && v && k in cbInk && cbInk[k] !== v; cbInk[k] = v;
+    return `<span class="${cls}${!v && want.includes(k) ? ' cb-want' : ''}${fresh ? ' cb-new' : ''}" style="${pos}">`
+      + (trait ? `<span class="cb-tl">${esc(trait)}</span> ` : `<span class="sr-only">${label}: </span>`) + `${esc(v)}</span>`;
+  };
+  const fields = n === 'portrait' ? SF_P : SF.filter(f => n === 'sheet' || f[0] === n);
+  return `<div class="cb-card${n === 'sheet' || n === 'portrait' ? ' cb-card-sheet' : ''}${land ? ' cb-land' : ''}" style="--cw:${w};--ch:${h}"><img src="assets/cards/${n === 'portrait' ? 'sheet-portrait' : n}.webp" alt="" width="${w}" height="${h}" decoding="async">`
+    + fields.filter(f => !f[5] || f[5] === (edit ? 'e' : 'r')).map(field).join('') + '</div>';
+}
+function cbCards(names, edit) {
+  const c = cbCharacter() || {slots: [], petty: [], traits: [], bonds: [], notes: []}, want = edit ? [] : cbSteps()[cb.i]?.fill || [];
+  return `<div class="cb-cards">${names.map(n => cbCard(n, c, edit, want)).join('')}</div>`;
+}
+// a phone's review: the sheet as its drawer listed it, in the steps' order, every value editable through the cards' own keys
+function cbReviewList(c) {
+  const fields = [['background', 'Background'], ['armor', 'Armor', 'n'], ['gold', 'Gold (gp)', 'n'], ['slots', 'Inventory, one item per line', 't'],
+    ['petty', 'Petty items, one per line', 't'], ...['str', 'dex', 'wil', 'hp'].map(k => [k, k.toUpperCase(), 'n']), ...CB.traits.map((t, i) => ['traits.' + i, t.name]),
+    ['age', 'Age', 'n'], ['bonds', 'Bonds, one per line', 't'], ['omen', 'Omen', 't'], ['name', 'Name'], ['notes', 'Notes, one per line', 't']];
+  return '<dl class="cb-sum cb-sum-edit">' + fields.map(([k, label, kind]) => {
+    const id = 'cbRv-' + k.replace(/\./g, '-'), v = String((k === 'age' ? cbAge() : cbVal(c, k)) ?? '');  // Age isn't on the character, only in its traits
+    // rows for browsers without field-sizing: a line each, and the long prose fields a line per ~35 characters, as they wrap on a phone
+    const rows = Math.max(2, v.split('\n').reduce((n, l) => n + (k === 'notes' || k === 'omen' ? Math.ceil(l.length / 35) || 1 : 1), 0));
+    const field = kind === 't' ? `<textarea id="${id}" data-edit="${k}" rows="${rows}" autocomplete="off"${k === 'slots' ? ' wrap="off"' : ''}>${esc(v)}</textarea>`
+      : `<input id="${id}" data-edit="${k}" autocomplete="off"${kind === 'n' ? ' inputmode="numeric"' : ''} value="${esc(v)}">`;
+    return `<div class="cb-sum-row"><dt><label for="${id}">${label}</label></dt><dd>${field}`
+      + (k === 'age' ? `<p class="cb-typed-err" id="${id}-err" role="status"></p>` : '') + '</dd></div>';
+  }).join('') + '</dl>';
+}
+function cbReviewHtml() {
+  const c = cbCharacter(); if (!c) return '';
+  return `<section class="cb-review" id="cbReview" aria-labelledby="cb-review-title"><h2 id="cb-review-title" tabindex="-1">Your character</h2>
+    <p class="muted">This is your sheet. Change anything on it, then print: Print fills the official Fillable Letter sheet, which stays fillable.</p>
+    ${CB_NARROW.matches ? cbReviewList(c) : cb.active ? '<p class="muted">Your sheet is beside this: change anything on it.</p>' : cbCards(['sheet'], true)}
+    ${c.slots.length > 10 ? `<p class="cb-warn">These don't fit in the 10 slots: ${esc(c.slots.slice(10).join(', '))}.</p>` : ''}${c.warnings.map(w => `<p class="cb-warn">${esc(w)}</p>`).join('')}
+    <div class="cb-print"><fieldset class="sheet-pick"><legend class="sr-only">Sheet layout</legend><div class="seg">${['landscape', 'portrait'].map(k => `<label><input type="radio" name="cb-sheet" value="${k}"${(cb.sheet || 'landscape') === k ? ' checked' : ''}><span>${k[0].toUpperCase() + k.slice(1)}</span></label>`).join('')}</div></fieldset>
+      <button class="btn btn-primary" type="button" id="cbPrint">Print</button><a class="btn btn-secondary" id="cbDownload" role="link" aria-disabled="true" aria-describedby="cbStatus">Download PDF</a><button class="btn btn-secondary" type="button" data-cb="reset">Start over</button></div>
+    <p class="cb-status" id="cbStatus" role="status">${cbPdf.url && cbPdf.key === JSON.stringify([c, cb.sheet || 'landscape']) ? esc(cbPdf.msg) : ''}</p></section>`;  // a rebuild with the sheet unchanged stays quiet
+}
+// edits are kept by field; slots and traits live in arrays
+const cbApplyEdit = (k, v) => {
+  const c = cbCharacter(); cb.edits = cb.edits || {};
+  const m = k.match(/^(slots|traits)\.(\d+)$/);
+  if (m) { const arr = m[1] === 'slots' ? [...c.slots] : c.traits.map(t => ({...t})); if (m[1] === 'slots') arr[+m[2]] = v; else arr[+m[2]].value = v; cb.edits[m[1]] = arr; }
+  // the review's slots keep their places (a blank line is an empty slot); its traits are "Label: value", a line each
+  else if (k === 'slots') cb.edits.slots = [...v.split('\n'), ...c.slots.slice(10)].map(x => x.trim()).reduceRight((a, x) => a.length || x ? [x, ...a] : a, []);
+  else if (k === 'ptraits') { const ls = v.split('\n'), tr = c.traits.map(t => ({...t}));
+    PTRAIT_GROUPS.forEach((g, li) => { const parts = (ls[li] || '').split(/\s*·\s*/); g.forEach((ti, pi) => { if (pi < parts.length && tr[ti]) tr[ti].value = parts[pi].replace(/^Age\s+/i, '').replace(/^—$/, '').trim(); }); });
+    cb.edits.traits = tr; }
+  else if (k === 'traits') { const ls = v.split('\n'); cb.edits.traits = c.traits.map((t, i) => ({label: t.label, value: (ls[i] || '').replace(/^[^:]*:\s*/, '').trim()})); }
+  else cb.edits[k] = ['petty', 'bonds', 'notes'].includes(k) ? v.split('\n').filter(Boolean) : v;  // one per line
+  if (/^p?traits/.test(k)) { const age = String(cb.edits.traits?.find(t => t.label === 'Age')?.value || '').trim(); if (age) cb.edits.age = age; else delete cb.edits.age; }
+  cbSave();
+};
+document.addEventListener('input', e => { const k = e.target.dataset?.edit; if (!k) return;
+  if (k === 'age') { const bad = !/^\d*$/.test(e.target.value.trim()), err = $('#cbRv-age-err');  // a phone's review: digits, as in the Age step
+    if (bad) { e.target.setAttribute('aria-invalid', 'true'); e.target.setAttribute('aria-describedby', 'cbRv-age-err'); }
+    else { e.target.removeAttribute('aria-invalid'); e.target.removeAttribute('aria-describedby'); }
+    const say = bad ? CB_AGE_MSG : ''; if (err.textContent !== say) err.textContent = say;  // a live region: said once, not per key
+    if (bad) return; }
+  cbApplyEdit(k, e.target.value); cbSoon();
+  const card = e.target.closest('.cb-card'); if (card && (k === 'bonds' || k === 'omen')) cbFitText(card);
+  for (const m of document.querySelectorAll(`[data-mirror="${k}"]`)) m.textContent = e.target.value; });  // MAX follows CURRENT
+document.addEventListener('change', e => { if (e.target.name === 'cb-sheet') { cb.sheet = e.target.value; cb.sheetPicked = true; cbSave(); cbSoon(0);
+  if (walk.open && !CB_NARROW.matches) cbStageRender(cbSteps()[cb.i]); } });  // the stage previews the sheet just picked
+let pdfLibP = null, cbPdf = {url: null, key: ''}, cbTimer = 0;
+const loadPdfLib = () => pdfLibP || (pdfLibP = new Promise((res, rej) => { const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js'; s.onload = () => res(window.PDFLib); s.onerror = () => { pdfLibP = null; rej(new Error('pdf-lib could not load')); }; document.head.appendChild(s); }));
+const sheetBytes = {};
+function cbSoon(ms = 600) { clearTimeout(cbTimer); cbTimer = setTimeout(cbPrepare, ms); }
+// Download PDF has no href until a sheet is filled, so it can't save the page instead; an unchanged message isn't re-announced
+const cbShowPdf = status => { if (status.textContent !== cbPdf.msg) status.textContent = cbPdf.msg; const dl = $('#cbDownload'); if (dl) { dl.href = cbPdf.url; dl.download = cbPdf.file; dl.removeAttribute('aria-disabled'); } };
+// fill the chosen sheet ahead of time, so Print only has to open it (a late window.open would be blocked as a pop-up)
+async function cbPrepare() {
+  const status = $('#cbStatus'); if (!status || !cb) return;
+  const c = cbCharacter(), sheet = cb.sheet || 'landscape', key = JSON.stringify([c, sheet]);
+  if (key === cbPdf.key && cbPdf.url) { cbShowPdf(status); return; }
+  if (!cbPdf.url) status.textContent = 'Filling in your sheet…';  // a refill after an edit stays quiet unless the message changes
+  try {
+    const PDFLib = await loadPdfLib();
+    sheetBytes[sheet] = sheetBytes[sheet] || await fetch(`assets/sheets/${sheet}.pdf`).then(r => { if (!r.ok) throw new Error('sheet ' + r.status); return r.arrayBuffer(); });
+    const {bytes, warn} = await cbFill(PDFLib, sheetBytes[sheet], sheet, c);
+    if (cbPdf.url) URL.revokeObjectURL(cbPdf.url);
+    cbPdf = {url: URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'})), key, file: `${(c.name || 'character').replace(/[^\w-]+/g, '-')}-${sheet}.pdf`,
+             msg: warn.length ? `Ready to print. ${warn.join(' ')}` : `Ready to print, on the ${sheet} sheet.`};
+    cbShowPdf(status);
+  } catch (e) {
+    cbPdf = {url: null, key: ''}; const dl = $('#cbDownload'); dl?.removeAttribute('href'); dl?.setAttribute('aria-disabled', 'true'); console.error(e);
+    status.textContent = location.protocol === 'file:' ? 'The sheets load from assets/sheets/ beside this page, so open it from a web server to print.' : "Couldn't fill the sheet. Check your connection and try again.";
+  }
+}
+async function cbFill(PDFLib, bytes, sheet, c) {
+  const S = SHEET[sheet], doc = await PDFLib.PDFDocument.load(bytes), form = doc.getForm(), font = await doc.embedFont(PDFLib.StandardFonts.Helvetica), warn = [];
+  // the sheet font writes WinAnsi only; anything else is simplified
+  const clean = t => [...String(t == null ? '' : t)].map(ch => { if (ch === '\n') return ch; try { font.widthOfTextAtSize(ch, 8); return ch; } catch { const p = ch.normalize('NFD').replace(/[̀-ͯ]/g, ''); try { font.widthOfTextAtSize(p, 8); return p; } catch { return ''; } } }).join('');
+  const field = n => form.getTextField(n), width = n => field(n).acroField.getWidgets()[0].getRectangle().width - 4;
+  const fits = (t, n, size) => font.widthOfTextAtSize(clean(t), size) <= width(n);
+  const set = (n, t, size) => { const f = field(n), da = `/Helv ${size} Tf 0 g`; f.acroField.setDefaultAppearance(da); for (const w of f.acroField.getWidgets()) w.setDefaultAppearance(da); f.setText(clean(t)); };
+  const wrap = (text, n, size) => { const out = []; let line = ''; for (const w of clean(text).split(/\s+/).filter(Boolean)) { const tryL = line ? line + ' ' + w : w; if (fits(tryL, n, size) || !line) line = tryL; else { out.push(line); line = w; } } if (line) out.push(line); return out; };
+  for (const [n, v] of [['Name', c.name], ['Background', c.background]]) set(n, v, 10);
+  // each score's second box (under it on Landscape, right of the slash on Portrait) is for the character's current state in play, so it's printed blank
+  for (const k of ['str', 'dex', 'wil', 'hp']) { set(k.toUpperCase() + '_CURRENT', c[k], 12); set(k.toUpperCase() + '_MAX', '', 12); }
+  set('Armor', c.armor, 12); set('Gold', c.gold, 11);
+  for (let i = 0; i < 10; i++) set(S.slots(i), c.slots[i] || '', 8);
+  const petty = [...c.petty], notes = [...c.notes];
+  for (let i = 0; i < S.pettyN; i++) set(S.petty(i), petty[i] || '', 7);
+  if (petty.length > S.pettyN) warn.push(`${petty.length - S.pettyN} petty item(s) won't fit: ${petty.slice(S.pettyN).join(', ')}.`);
+  if (c.slots.length > 10) warn.push(`${c.slots.length - 10} item(s) won't fit in the 10 slots.`);
+  // traits: one per line on Landscape (the label dropped when a line is too short); three lines of pairs and one of three on Portrait
+  const T = c.traits.filter(t => t.value !== '');
+  const lines = sheet === 'landscape' ? T.map(t => `${t.label}: ${t.value}`) : cbPortraitTraits(c);
+  for (let i = 0; i < S.traitsN; i++) { let t = lines[i] || ''; if (t && !fits(t, S.traits(i), 8)) t = t.replace(/^[^:]+:\s*/, ''); set(S.traits(i), t, 8); }
+  // bonds and omens wrap over their lines, each text starting a line of its own. The whole set takes one size: the largest
+  // of 8 to 6pt at which every text fits whole. If none does, the set is printed at 8pt: on Portrait (3 lines each),
+  // each text's first sentence
+  const over = [];  // what doesn't fit on the bond and omen lines continues in Notes, after the backpack and swap notes
+  const fill = (texts, name, count, what) => { let li = 0;
+    const narrow = [...Array(count).keys()].map(name).reduce((a, b) => width(b) < width(a) ? b : a);  // wrapped to the narrowest line
+    const size = [8, 7.5, 7, 6.5, 6].find(z => texts.reduce((n, t) => n + wrap(t, narrow, z).length, 0) <= count);
+    if (size) for (const t of texts) wrap(t, narrow, size).forEach(w => set(name(li++), w, size));
+    else for (const t of texts) { const short = sheet === 'portrait' ? firstSentence(t) : t, ws = wrap(short, narrow, 8), room = count - li;
+      ws.slice(0, room).forEach(w => set(name(li++), w, 8));
+      const rest = [ws.slice(room).join(' '), short !== t ? t.slice(short.length).trim() : ''].filter(Boolean).join(' ');
+      if (rest) over.push(`${what} (continued): ${rest}`); }
+    while (li < count) set(name(li++), '', size || 8); };
+  fill(c.bonds, S.bonds, S.bondsN, 'Bond'); fill(c.omen ? [c.omen] : [], S.omens, S.omensN, 'Omen');
+  const quote = plainText(cbBg().quote), qi = notes.indexOf(quote); if (qi >= 0) notes.splice(qi, 1);  // found even after a Notes edit
+  const at = notes.findIndex(n => !/^(Backpack|Swapped)/.test(n));
+  notes.splice(at < 0 ? notes.length : at, 0, ...over);
+  // notes: as many lines as fit at a readable size, never shrunk
+  const nf = field('Notes'), nr = nf.acroField.getWidgets()[0].getRectangle(), cap = Math.floor((nr.height - 4) / (S.notes * 1.2));
+  // Landscape's Notes has printed rules: one line of text per rule, a blank line between, so it sits on them
+  const per = S.ruled ? 2 : 1, room = Math.floor(cap / per), nl = notes.flatMap(t => wrap(t, 'Notes', S.notes)), kept = nl.slice(0, room);
+  const ql = qi >= 0 ? wrap(quote, 'Notes', S.notes) : []; if (nl.length + ql.length <= room) kept.push(...ql);  // whole, or left out
+  nf.enableMultiline(); set('Notes', (S.ruled ? kept.flatMap(l => [l, '']) : kept).join('\n'), S.notes);
+  if (nl.length > room) warn.push(`Notes is full: ${nl.length - room} line${nl.length - room === 1 ? '' : 's'} won't fit on the printed sheet. Shorten Notes.`);
+  form.updateFieldAppearances(font);
+  return {bytes: await doc.save(), warn};
+}
+document.addEventListener('click', e => {
+  if (e.target.id !== 'cbPrint') return;
+  const status = $('#cbStatus');
+  if (!cbPdf.url || cbPdf.key !== JSON.stringify([cbCharacter(), cb.sheet || 'landscape'])) { notify('Your sheet is still being filled in. Try again in a moment.', {kind: 'error'}); cbPrepare(); return; }
+  // Chrome and Edge print a PDF from an iframe; Safari and Firefox don't, so they get a tab, opened inside this click
+  if (/Chrome|Chromium|Edg\//.test(navigator.userAgent) && !/Firefox|FxiOS/.test(navigator.userAgent)) {
+    let f = $('#cbPrintFrame');
+    if (!f) { f = document.createElement('iframe'); f.id = 'cbPrintFrame'; f.title = 'Character sheet, for printing'; f.tabIndex = -1; f.setAttribute('aria-hidden', 'true');
+      f.style.cssText = 'position:fixed;right:0;bottom:0;width:2px;height:2px;border:0;opacity:0;pointer-events:none'; document.body.appendChild(f); }
+    status.textContent = 'Opening the print dialog…';
+    f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); status.textContent = cbPdf.msg; } catch { if (!window.open(cbPdf.url, '_blank')) { status.textContent = ''; notify('Printing was blocked. Use Download PDF, then print it.', {kind: 'error'}); } } };
+    f.src = cbPdf.url;
+  } else if (!window.open(cbPdf.url, '_blank')) notify('A pop-up blocker stopped the sheet opening. Use Download PDF, then print it.', {kind: 'error'});
+});
+
 // ---------- views (TITLES lists them), plus anchors inside each
 const TITLES = {home: 'Cairn: read the rules free', rules: pageTitle, resources: 'Resources · Cairn', sitemap: 'Sitemap · Cairn', adventures: 'Adventures · Cairn',
   adventure: () => `${ADV_BY[shownAdv]?.name || 'Adventure'} · Adventures · Cairn`};
@@ -1484,9 +2691,10 @@ function route() {
     const cur = v === 'rules' ? (isAdvPage(shown.page) ? 'adventures' : 'rules') : {resources: 'resources', adventures: 'adventures', adventure: 'adventures'}[v];
     if (cur) { const n = $(`[data-nav="${cur}"]`); n.setAttribute('aria-current', n.getAttribute('href') === '#' + (v === 'rules' ? shown.page : v) ? 'page' : 'true'); }
     // in the rules view the section nav also appears in the mobile drawer
-    $('#drawerExtra').innerHTML = v === 'rules' ? `<nav class="section-nav" aria-label="${isAdvPage(shown.page) ? 'Adventures' : 'Second Edition'}, in menu">${sectionNav(shown.page)}</nav>` : '';
+    $('#drawerExtra').innerHTML = v === 'rules' ? `<nav class="section-nav" aria-label="${isAdvPage(shown.page) ? 'Adventures' : GROUP_NAME[PAGES[shown.page].group]}, in menu">${sectionNav(shown.page)}</nav>` : '';
   }
-  if (v === 'rules') scrollableTables();  // now the view is showing, so widths can be measured
+  if (v === 'rules') { scrollableTables(); cbFitText(); }  // now the view is showing, so widths can be measured
+  cbBar();  // the builder's bar shows only on Character Creation; before focus moves, so a closing walkthrough can't leave the page inert
   const target = id && document.getElementById(id);
   const root = ['home', 'rules', 'resources', 'sitemap', 'adventures'].includes(id) || (v === 'rules' && !!PAGES[id]) || v === 'adventure';
   if (target && !root) {
@@ -1507,13 +2715,21 @@ const DICE_CDN = 'https://cdn.jsdelivr.net/npm/@3d-dice/dice-box@1.1.4/dist/';
 const SIDES = [4, 6, 8, 10, 12, 20], TYPE_MAX = 10, POOL_MAX = 20, SETTLE_MS = 8000;
 // colours sampled from the hero art (the tree's teal and deep purple, the monster's reds), plus a truer red; the tray's Colour choice picks one
 const COLOURS = [['Tree teal', '#41697d'], ['Hero deep rose', '#ae3f6c'], ['Tree purple', '#44345c'], ['Blood red', '#b3122e']];
-const tray = $('#diceTray'), toast = $('#diceToast'), isOpen = () => tray.matches(':popover-open');
-let colour = COLOURS[0][1], box = null, boxLoad = null, offline = false;
+const tray = $('#diceTray'), toast = $('#diceToast'), stage = $('#diceStage'), isOpen = () => tray.matches(':popover-open');
+let box = null, boxLoad = null, offline = false;
 let clearTimer = 0, toastTimer = 0, onTable = false, last = null, seq = 0, queue = Promise.resolve();
+// the drawer's open state, the 3D switch and the history are kept between visits
+const OPEN_KEY = 'cairn-dice-open', THREE_D_KEY = 'cairn-dice-3d', HISTORY_KEY = 'cairn-dice-history', COLOUR_KEY = 'cairn-dice-colour', HISTORY_MAX = 50;
+const stored = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const store = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+let colour = (COLOURS.find(([, c]) => c === stored(COLOUR_KEY)) || COLOURS[0])[1];
+document.documentElement.style.setProperty('--dice', colour);
 const rolls = [];
+try { rolls.push(...(JSON.parse(stored(HISTORY_KEY)) || []).slice(0, HISTORY_MAX)); } catch {}
 
-// notation: '3d6', '1d8+1d6', '2d6+1', or arrays of those or of {sides, qty, modifier}
-function parse(request) {
+// notation: '3d6', '1d8+1d6', '2d6+1', or arrays of those or of {sides, qty, modifier}. With highest, a sum of single
+// dice and nothing else ('d8+d8', 'd10+d8') keeps the highest die, as Cairn reads a weapon's damage
+function parse(request, highest = false) {
   const terms = [], bad = x => new Error(`CairnDice: can't read ${JSON.stringify(x)}. Use notation like 3d6, 1d8+1d6 or 2d6+1.`);
   let modifier = 0;
   const add = (qty, sides, x) => {
@@ -1531,7 +2747,7 @@ function parse(request) {
     }
   }
   if (!terms.length) throw new Error('CairnDice: there are no dice to roll.');
-  return {terms, modifier};
+  return {terms, modifier, highest: highest && typeof request === 'string' && /^1?d\d+(?:\+1?d\d+)+$/.test(request.replace(/\s+/g, '').toLowerCase())};
 }
 const notation = ({terms, modifier}) => terms.map(t => `${t.qty}d${t.sides}`).join('+') + (modifier ? (modifier > 0 ? '+' : '-') + Math.abs(modifier) : '');
 const randomDie = sides => { const a = new Uint32Array(1), lim = Math.floor(2 ** 32 / sides) * sides; do crypto.getRandomValues(a); while (a[0] >= lim); return a[0] % sides + 1; };
@@ -1548,18 +2764,26 @@ function loadBox() {
   })().then(b => (box = b), err => { offline = true; console.warn('CairnDice: 3D dice unavailable, rolling without them.', err); return null; });
   return boxLoad;
 }
-function clearTable() { clearTimeout(clearTimer); onTable = false; if (box) box.clear(); }
+// with fade, the dice fade out and stay, unseen, until the next roll (dice-box's roll() clears the table first)
+function clearTable(fade = false) {
+  clearTimeout(clearTimer);
+  if (fade && onTable && !REDUCE.matches) { onTable = false; stage.classList.add('dice-fade'); return; }
+  onTable = false; if (box) box.clear();
+}
 
 // rolls run one at a time: dice-box drops a roll still in flight when a new one starts
-function roll(request, {label = '', show3d = true} = {}) {
+// record: into the history (the builder's rolls aren't); detail: a line for the result, given the total (a table's row)
+function roll(request, {label = '', show3d = true, highest = false, record = !walking(), detail = null} = {}) {
   let parsed;
-  try { parsed = parse(request); } catch (err) { return Promise.reject(err); }
+  try { parsed = parse(request, highest); } catch (err) { return Promise.reject(err); }
   const run = async () => {
     clearTimeout(clearTimer);
     const b = show3d && !REDUCE.matches ? (box || (showStatus('Loading dice…', true), await loadBox())) : null;
     let dice;
     if (b) {
-      const out = await b.roll(parsed.terms.map(({sides, qty}) => ({sides, qty})));
+      const rolling = b.roll(parsed.terms.map(({sides, qty}) => ({sides, qty})));
+      stage.classList.remove('dice-fade');  // only after b.roll() has queued its clear, so the faded dice can't flash back
+      const out = await rolling;
       dice = out.map(d => ({sides: Number(String(d.sides).replace(/\D/g, '')), value: d.value}));
       onTable = true; clearTimer = setTimeout(clearTable, SETTLE_MS);
     } else {
@@ -1567,9 +2791,12 @@ function roll(request, {label = '', show3d = true} = {}) {
     }
     const groups = parsed.terms.map(({sides}) => { const values = dice.filter(d => d.sides === sides).map(d => d.value);
       return {sides, qty: values.length, values, subtotal: values.reduce((n, v) => n + v, 0)}; });
-    const result = {id: `roll-${++seq}`, label, notation: notation(parsed), total: groups.reduce((n, g) => n + g.subtotal, 0) + parsed.modifier,
-      modifier: parsed.modifier, dice, groups, method: b ? '3d' : 'random', rolledAt: new Date().toISOString()};
-    last = parsed; rolls.unshift(result); rolls.length = Math.min(rolls.length, 20);
+    const total = parsed.highest ? Math.max(...dice.map(d => d.value)) : groups.reduce((n, g) => n + g.subtotal, 0) + parsed.modifier;
+    const result = {id: `roll-${++seq}`, label, notation: parsed.highest ? parsed.terms.flatMap(t => Array(t.qty).fill(`d${t.sides}`)).join('+') : notation(parsed),
+      total, mode: parsed.highest ? 'highest' : 'sum', detail: detail ? detail(total) : '',
+      modifier: parsed.modifier, dice, groups, method: b ? '3d' : 'random', fallback: show3d && !b ? (offline ? 'offline' : 'plain') : '', rolledAt: new Date().toISOString()};
+    last = parsed;
+    if (record) { rolls.unshift(result); rolls.length = Math.min(rolls.length, HISTORY_MAX); store(HISTORY_KEY, JSON.stringify(rolls)); }
     document.dispatchEvent(new CustomEvent('cairn-dice:rolled', {detail: result}));
     return result;
   };
@@ -1589,86 +2816,248 @@ const shapes = {
   20: '<polygon class="shape" points="24,2 44,13 44,35 24,46 4,35 4,13"/><text class="num" x="24" y="24">20</text>',
 };
 const pool = new Map(SIDES.map(n => [n, 0]));
-$('#diceGrid').innerHTML = SIDES.map(n => `<li><button class="die-add" type="button" data-sides="${n}"><span class="die-count" hidden></span><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">${shapes[n]}</svg></button><button class="die-remove is-zero" type="button" data-sides="${n}" aria-label="Remove a d${n}">−</button></li>`).join('');
-$('#diceColours').innerHTML = COLOURS.map(([name, c], i) => `<label><input type="radio" name="dice-colour" value="${c}"${i ? '' : ' checked'}><span class="sw" style="--c:${c}"></span>${name}</label>`).join('');
+const ICON_MINUS = '<svg class="i-minus" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const ICON_BIN = '<svg class="i-trash" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+$('#diceGrid').innerHTML = SIDES.map(n => `<li data-sides="${n}"><button class="die-add" type="button"><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">${shapes[n]}</svg></button>`
+  + `<div class="die-qty" role="group" aria-label="d${n} count" hidden><button class="die-minus" type="button">${ICON_MINUS}${ICON_BIN}</button><button class="die-count" type="button" aria-expanded="false"></button>`
+  + `<button class="die-plus" type="button" aria-label="Add another d${n}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div></li>`).join('');
+$('#diceColours').innerHTML = COLOURS.map(([name, c]) => `<label><input type="radio" name="dice-colour" value="${c}"${c === colour ? ' checked' : ''}><span class="sw" style="--c:${c}"></span>${name}</label>`).join('');
 const poolTerms = () => SIDES.filter(n => pool.get(n)).map(n => ({sides: n, qty: pool.get(n)}));
+const poolSize = () => [...pool.values()].reduce((a, b) => a + b, 0), poolFull = n => pool.get(n) >= TYPE_MAX || poolSize() >= POOL_MAX;
+const cell = n => tray.querySelector(`#diceGrid li[data-sides="${n}"]`), field = $('#diceExpr');
+let editing = null, collapseTimer = 0;  // the die whose stepper is open
+function edit(n) {
+  editing = n; clearTimeout(collapseTimer);
+  for (const li of tray.querySelectorAll('#diceGrid li')) { const on = +li.dataset.sides === n; li.classList.toggle('is-editing', on); li.querySelector('.die-count').setAttribute('aria-expanded', String(on)); }
+  // like a cart's stepper it folds back to the count after a moment, unless a keyboard user is in it (they close it with Escape or Tab)
+  if (n !== null) collapseTimer = setTimeout(() => {
+    const qty = cell(n).querySelector('.die-qty');
+    if (qty.querySelector(':focus-visible')) return;
+    const inside = qty.contains(document.activeElement); edit(null);
+    if (inside) qty.querySelector('.die-count').focus();
+  }, 500);
+}
 function renderPool() {
   for (const n of SIDES) {
-    const k = pool.get(n), add = tray.querySelector(`.die-add[data-sides="${n}"]`), badge = add.querySelector('.die-count');
-    badge.hidden = !k; badge.textContent = k;
-    add.setAttribute('aria-label', `Add a d${n}, ${k} in the pool`);
-    tray.querySelector(`.die-remove[data-sides="${n}"]`).classList.toggle('is-zero', !k);
+    const k = pool.get(n), li = cell(n), qty = li.querySelector('.die-qty'), count = li.querySelector('.die-count'), minus = li.querySelector('.die-minus'), plus = li.querySelector('.die-plus');
+    li.querySelector('.die-add').setAttribute('aria-label', `Add a d${n}${k ? `, ${k} in the pool` : ''}`);
+    qty.hidden = !k; count.textContent = k; count.setAttribute('aria-label', `d${n} count, ${k} in the pool`);
+    minus.toggleAttribute('data-one', k <= 1); minus.setAttribute('aria-label', k > 1 ? `Remove one d${n}, ${k} in the pool` : `Remove the d${n} from the pool`);
+    plus.setAttribute('aria-disabled', String(poolFull(n)));
   }
-  const terms = poolTerms();
-  $('#dicePool').textContent = terms.length ? terms.map(t => `${t.qty}d${t.sides}`).join(' + ') : 'Pick some dice';
-  $('#diceRoll').disabled = !terms.length;
+  const terms = poolTerms(), atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 4;
+  $('#dicePool').textContent = terms.map(t => `${t.qty}d${t.sides}`).join(' + ');
+  $('#dicePoolClear').hidden = !terms.length;
+  $('#diceSend').disabled = !terms.length && !field.value.trim();
+  if (atEnd) toEnd(false);  // the pool line comes and goes, resizing the history
 }
-// results show in the tray, or, while it's closed (after Roll), in a card under the pill until the dice clear
-function show(html, keep) {
-  $('#diceResults').innerHTML = html;
-  if (isOpen()) return;
+// a result is a message in the drawer's history; while the drawer is closed it's a card under the pill until the dice
+// clear. A status ("Loading dice…") takes the pool line while the drawer is open
+function show(html, keep, status) {
+  if (isOpen()) { if (status) $('#dicePool').textContent = status; return; }
+  // in the builder's walkthrough the 3D dice and its footer are enough: no card. A status during its own roll ("Loading
+  // dice…") shows in the footer until the roll's result replaces it
+  if (walking()) { hideToast(); if (status && cbBusy) { $('#cbResult').textContent = status; cbSaid = null; } return; }
   toast.innerHTML = html; toast.hidden = false; place();
   clearTimeout(toastTimer); if (!keep) toastTimer = setTimeout(hideToast, SETTLE_MS);
 }
-function hideToast() { clearTimeout(toastTimer); if (toast.contains(document.activeElement)) $('#diceBtn').focus(); toast.hidden = true; }
-const showStatus = (text, keep) => show(`<p class="dice-note">${esc(text)}</p>`, keep);
+// inside the character builder's walkthrough (a modal), the header's pill is out of reach: its Roll button stands in
+const walking = () => !!toast.closest('dialog[open]'), pill = () => walking() ? $('#cbRoll') : $('#diceBtn');
+function hideToast() { clearTimeout(toastTimer); if (toast.contains(document.activeElement)) pill().focus(); toast.hidden = true; }
+const showStatus = (text, keep) => show(`<p class="dice-note">${esc(text)}</p>`, keep, text);
+const fallbackText = f => f === 'offline' ? '3D dice need an internet connection, so this was rolled without them.' : f ? 'Rolled without 3D dice.' : '';
+const valuesOf = r => { const parts = r.groups.map(g => `d${g.sides}: ${g.values.join(', ')}`);
+  if (r.modifier) parts.push(`${r.modifier > 0 ? '+' : '−'}${Math.abs(r.modifier)}`); return parts.join(' · '); };
 function showResult(r) {
-  const parts = r.groups.map(g => `d${g.sides}: ${g.values.join(', ')}`);
-  if (r.modifier) parts.push(`${r.modifier > 0 ? '+' : '−'}${Math.abs(r.modifier)}`);
-  const why = r.method === 'random' ? (offline ? '3D dice need an internet connection, so this was rolled without them.' : '(rolled without 3D dice)') : '';
+  const why = fallbackText(r.fallback);
   show((r.label ? `<p class="dice-label">${esc(r.label)}</p>` : '') +
-    `<p class="dice-total">Total ${r.total}</p><p>${esc(parts.join(' · '))}</p>` + (why ? `<p class="dice-note">${esc(why)}</p>` : ''));
+    `<p class="dice-total">${r.mode === 'highest' ? 'Highest' : 'Total'} ${r.total}</p><p>${esc(valuesOf(r))}</p>` + (r.detail ? `<p>${esc(r.detail)}</p>` : '') + (why ? `<p class="dice-note">${esc(why)}</p>` : ''));
 }
-document.addEventListener('cairn-dice:rolled', e => showResult(e.detail));
-
-tray.addEventListener('click', e => {
-  const add = e.target.closest('.die-add'), rem = e.target.closest('.die-remove');
-  const total = [...pool.values()].reduce((a, b) => a + b, 0);
-  if (add) { const n = +add.dataset.sides;
-    if (pool.get(n) < TYPE_MAX && total < POOL_MAX) pool.set(n, pool.get(n) + 1);
-    else showStatus(`Up to ${TYPE_MAX} of each die, ${POOL_MAX} in all.`);
-    renderPool(); }
-  if (rem) { const n = +rem.dataset.sides; pool.set(n, Math.max(0, pool.get(n) - 1)); renderPool();
-    if (!pool.get(n)) tray.querySelector(`.die-add[data-sides="${n}"]`).focus(); }
+// the history is a chat: oldest first, the newest at the foot. A roll appends one message, so a screen reader hears only it
+const body = $('#diceBody'), hist = $('#diceHist');
+const clock = iso => new Date(iso).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+const message = r => `<li class="dice-msg"><span class="what">${esc([r.label, (r.mode === 'highest' ? 'highest of ' : '') + r.notation].filter(Boolean).join(' · '))}</span>`
+  + `<span class="total">${r.total}</span><span class="how">${esc(valuesOf(r))}</span>` + (r.detail ? `<span class="how">${esc(r.detail)}</span>` : '')
+  + (r.fallback ? `<span class="note">${esc(fallbackText(r.fallback))}</span>` : '') + `<span class="time">${clock(r.rolledAt)}</span></li>`;
+const toEnd = smooth => body.scrollTo({top: body.scrollHeight, behavior: smooth && !REDUCE.matches ? 'smooth' : 'auto'});
+function renderHistory() {
+  hist.innerHTML = rolls.slice().reverse().map(message).join('');
+  $('#diceHistNone').hidden = !!rolls.length; toEnd(false);
+}
+// a new roll appends its message (renderHistory redraws the whole list, on load and on Clear), so nothing is re-announced
+document.addEventListener('cairn-dice:rolled', e => {
+  showResult(e.detail); renderPool();
+  if (rolls[0] !== e.detail) return;  // the builder's rolls aren't kept
+  setView('rolls');
+  hist.insertAdjacentHTML('beforeend', message(e.detail));
+  while (hist.children.length > HISTORY_MAX) hist.firstElementChild.remove();
+  $('#diceHistNone').hidden = true; toEnd(true);
 });
-// Roll closes the tray so the dice are in view; the result appears under the pill
-$('#diceRoll').addEventListener('click', () => { const terms = poolTerms(); if (!terms.length) return;
-  tray.hidePopover(); roll(terms).catch(err => showStatus(err.message)); });
-toast.addEventListener('click', () => tray.showPopover());
-$('#diceClear').addEventListener('click', () => { for (const n of SIDES) pool.set(n, 0); renderPool(); clearTable(); hideToast(); $('#diceResults').innerHTML = ''; });
+
+// tapping a die adds one and opens its stepper; the badge opens it without adding. It closes on a click or
+// Tab elsewhere, on Escape, after half a second untouched, or when the die's count reaches 0
+function bump(n, by) {
+  if (by > 0 && poolFull(n)) { showStatus(`Up to ${TYPE_MAX} of each die, ${POOL_MAX} in all.`); return; }
+  pool.set(n, Math.max(0, pool.get(n) + by));
+  renderPool(); void cell(n).offsetWidth;  // lay out the circle first, so the stepper grows out of it
+  edit(pool.get(n) ? n : null);
+  if (!pool.get(n)) cell(n).querySelector('.die-add').focus();
+}
+tray.addEventListener('click', e => {
+  const hit = e.target.closest('.die-add, .die-count, .die-plus, .die-minus');
+  if (!hit) return;
+  const n = +hit.closest('li').dataset.sides;
+  if (hit.matches('.die-count')) edit(editing === n ? null : n);
+  else bump(n, hit.matches('.die-minus') ? -1 : 1);
+});
+// pointing at a die's gold count opens its stepper (without adding); pointing at the stepper holds it open; pointing at the die itself does neither
+tray.addEventListener('pointerover', e => {
+  const qty = e.pointerType === 'mouse' && e.target.closest('.die-qty'), n = qty && +qty.closest('li').dataset.sides;
+  if (n && editing !== n) edit(n);
+  if (editing !== null && qty) clearTimeout(collapseTimer);
+});
+tray.addEventListener('pointerout', e => { if (editing !== null && e.target.closest('.die-qty') && !e.relatedTarget?.closest('.die-qty')) edit(editing); });
+document.addEventListener('pointerdown', e => { if (editing !== null && !e.target.closest('#diceGrid li.is-editing')) edit(null); });
+tray.addEventListener('focusout', e => { if (editing !== null && e.relatedTarget && !e.relatedTarget.closest('li.is-editing')) edit(null); });
+// the 3D switch; it's off, with the reason, where 3D dice can't run
+const sw = $('#dice3d'), use3d = () => sw.checked && !sw.disabled, narrow = () => document.documentElement.clientWidth < 760;
+function setSwitch() {
+  const off = REDUCE.matches ? 'Off because your device is set to reduce motion.' : !hasWebGL() ? 'Off because this browser can’t show 3D graphics.' : '';
+  sw.disabled = !!off; sw.checked = !off && stored(THREE_D_KEY) !== '0'; $('#dice3dWhy').textContent = off; $('#dice3dWhy').hidden = !off;
+}
+sw.addEventListener('change', () => { store(THREE_D_KEY, sw.checked ? null : '0'); sw.checked ? loadBox() : clearTable(); });
+REDUCE.addEventListener('change', setSwitch);
+setSwitch();
+// a roll from the drawer keeps it open, except on a phone with 3D dice, where it covers the page: it steps aside for the
+// dice, and the result appears under the pill
+function rollHere(request, opts) {
+  if (use3d() && narrow()) tray.hidePopover();
+  return roll(request, {show3d: use3d(), ...opts}).catch(err => showStatus(err.message));
+}
+// Roll sends the field's text if it has any, otherwise the picked dice
+$('#diceType').addEventListener('submit', e => {
+  e.preventDefault();
+  const err = $('#diceExprErr'), x = field.value.trim();
+  if (!x) { const terms = poolTerms(); if (terms.length) rollHere(terms); return; }
+  let bad = ''; try { parse(x); } catch { bad = `Can’t read “${x}”. Type dice like 2d6+1 or d8+d8.`; }
+  bad ? field.setAttribute('aria-invalid', 'true') : field.removeAttribute('aria-invalid'); err.textContent = bad; err.hidden = !bad;
+  if (bad) { field.focus(); return; }
+  field.value = ''; renderPool(); rollHere(x, {highest: true});
+});
+field.addEventListener('input', () => { field.removeAttribute('aria-invalid'); $('#diceExprErr').hidden = true; renderPool(); });
+$('#dicePoolClear').addEventListener('click', () => { for (const n of SIDES) pool.set(n, 0); edit(null); renderPool(); clearTable(); hideToast(); tray.querySelector('.die-add').focus(); });
+toast.addEventListener('click', () => { focusOnOpen = true; tray.showPopover(); saveOpen(); });
+// the gear swaps the history for Settings, and Back (the same button) swaps it back
+function setView(v, moveFocus) {
+  if (tray.dataset.view === v) return;
+  const settings = v === 'settings', back = $('#diceSettingsBtn');
+  const hadFocus = $('#diceSettings').contains(document.activeElement);
+  edit(null); tray.dataset.view = v;
+  $('#diceChat').hidden = $('#diceFoot').hidden = settings; $('#diceSettings').hidden = !settings;
+  $('#diceTitle').textContent = settings ? 'Settings' : 'Dice';
+  back.setAttribute('aria-label', settings ? 'Back to rolls' : 'Dice settings');
+  if (settings) $('#diceSettings').querySelector('input:not(:disabled)').focus();
+  else { toEnd(false); if (moveFocus && hadFocus) back.focus(); }
+}
+$('#diceSettingsBtn').addEventListener('click', () => setView(tray.dataset.view === 'settings' ? 'rolls' : 'settings'));
+$('#diceHistClear').addEventListener('click', () => {
+  rolls.length = 0; store(HISTORY_KEY, null); renderHistory();
+  notify('Roll history cleared.');
+});
 $('#diceColours').addEventListener('change', e => {
-  colour = e.target.value; document.documentElement.style.setProperty('--dice', colour);
+  colour = e.target.value; document.documentElement.style.setProperty('--dice', colour); store(COLOUR_KEY, colour);
   if (box) box.updateConfig({themeColor: colour});
   // the colour applies to the next roll; re-roll what's on the table so it shows at once
   if (onTable && last) roll(last.terms.map((t, i) => i ? t : {...t, modifier: last.modifier}));
 });
 
-// the tray and the result card hang just under the header, right-aligned with its content
+// the result card hangs under the header, right-aligned with its content (the drawer fills the window; this only clears what the builder's walkthrough set on it)
 function place() {
+  if (walking()) { for (const el of [tray, toast]) { el.style.top = '16px'; el.style.right = '16px'; } tray.style.maxHeight = `${innerHeight - 28}px`; return; }
   const wrap = header.querySelector('.wrap'), w = wrap.getBoundingClientRect(), vw = document.documentElement.clientWidth;
-  const top = Math.round(Math.max(0, header.getBoundingClientRect().bottom) + 6);
-  const right = vw >= 760 ? `${Math.round(vw - (w.right - parseFloat(getComputedStyle(wrap).paddingRight)))}px` : '';
-  for (const el of [tray, toast]) { el.style.top = `${top}px`; el.style.right = right; }
-  tray.style.maxHeight = `${innerHeight - top - 12}px`;
+  const foot = Math.round(Math.max(0, header.getBoundingClientRect().bottom));
+  toast.style.top = `${foot + 6}px`; toast.style.right = vw >= 760 ? `${Math.round(vw - (w.right - parseFloat(getComputedStyle(wrap).paddingRight)))}px` : '';
+  tray.style.top = tray.style.right = tray.style.maxHeight = '';
 }
 addEventListener('scroll', () => { if (isOpen() || !toast.hidden) place(); }, {passive: true});
 addEventListener('resize', () => { if (isOpen() || !toast.hidden) place(); });
-// the tray is a popover: the pill opens and closes it, and a click outside or Escape closes it, returning focus to the pill
+// the drawer is a manual popover, so the page stays usable while it's open: the pill opens and closes it, and so do
+// its close button and Escape, returning focus to the pill. It stays open from page to page, and from visit to visit
+let focusOnOpen = false;
+const saveOpen = () => store(OPEN_KEY, isOpen() ? '1' : null);  // only on the reader's own open and close, never a move
+function collapse() { setView('rolls'); tray.hidePopover(); saveOpen(); $('#diceBtn').focus(); }
+$('#diceBtn').addEventListener('click', () => { focusOnOpen = !isOpen(); setTimeout(saveOpen); });  // the pill's own toggle runs after this
+$('#diceCollapse').addEventListener('click', collapse);
 tray.addEventListener('beforetoggle', e => {  // before it's shown, so it never paints unplaced
   if (e.newState !== 'open') return;
   hideToast(); place();
-  if (!REDUCE.matches) loadBox();
+  if (use3d()) loadBox();
 });
 tray.addEventListener('toggle', e => {
-  if (e.newState === 'open') tray.querySelector('.die-add').focus();
-  else if (document.activeElement === document.body) $('#diceBtn').focus();  // opened from the result card, which hid as it opened
+  if (e.newState === 'open') { toEnd(false); if (focusOnOpen) tray.querySelector('.die-add').focus(); focusOnOpen = false; restackNotices(); }  // notices still up go back above it
+  else { edit(null); setView('rolls'); if (!walking() && document.activeElement === document.body) pill().focus(); }
+  if (box && !walking()) dispatchEvent(new Event('resize'));  // the dice table narrows and widens with the drawer
 });
 // capture phase: keeps the page's own Escape handler (which would move focus to Menu) from seeing the tray's Escape
 // Escape also clears the result card while it shows
-document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (isOpen() && tray.contains(e.target)) e.stopPropagation(); else if (!toast.hidden) hideToast(); }, true);
-renderPool();
+// Escape closes the topmost layer: the open stepper, then Settings, then the drawer
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.target.closest?.('#notices')) return;  // a notice's Escape closes only it
+  if (isOpen() && tray.contains(e.target)) {
+    e.stopPropagation();
+    if (editing !== null) { const n = editing; edit(null); cell(n).querySelector('.die-add').focus(); }
+    else if (tray.dataset.view === 'settings') setView('rolls', true);
+    else collapse();
+  } else if (!toast.hidden) hideToast();
+}, true);
+// the builder's walkthrough takes the tray in while it's open; when it closes, the drawer comes back as the reader left it
+const reopen = () => { if (stored(OPEN_KEY) === '1' && !walking() && !isOpen()) tray.showPopover(); };
+$('#cbWalk').addEventListener('close', reopen);  // after the builder's own close listener, which moves the tray back
 
-window.CairnDice = Object.freeze({roll, open: () => isOpen() || tray.showPopover(), close: () => isOpen() && tray.hidePopover(), get history() { return rolls.slice(); }});
+// ---------- a die in the text rolls itself; in a roll table's header, the row it lands on is marked
+const headingBefore = el => {
+  for (let n = el; n && n !== document.body; n = n.parentElement)
+    for (let p = n.previousElementSibling; p; p = p.previousElementSibling) {
+      const h = p.matches('h1,h2,h3,h4,h5,h6') ? p : [...p.querySelectorAll('h1,h2,h3,h4,h5,h6')].pop();
+      if (h) return h.textContent.trim();
+    }
+  return '';
+};
+// "1", "1-3", "1–3", "5+" or, on a d100, "96-00"
+const keyHas = (key, n) => {
+  const k = key.replace(/\s+/g, '').replace(/[–—]/g, '-'), num = x => x === '00' ? 100 : +x;
+  let m;
+  if ((m = k.match(/^(\d+)-(\d+)$/))) return n >= num(m[1]) && n <= num(m[2]);
+  if ((m = k.match(/^(\d+)\+$/))) return n >= num(m[1]);
+  return /^\d+$/.test(k) && num(k) === n;
+};
+function rollLabel(btn, table, head) {
+  if (table) return table.caption?.textContent.trim() || (head && table.tHead.rows[0].cells[1]?.innerText.split('\n')[0].trim()) || headingBefore(table);
+  // a stat line's attack: "flaming sword (d10)" is the creature's flaming sword
+  const before = (btn.previousSibling?.textContent || '').trim(), weapon = before.endsWith('(') ? before.slice(0, -1).split(/,|\bor\b/).pop().trim() : '';
+  return [headingBefore(btn), weapon].filter(Boolean).join(' · ');
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('button.roll');
+  if (!btn || walking()) return;
+  const table = btn.closest('table'), inHead = table?.dataset.die && btn.closest('thead') && btn.dataset.roll.replace(/^1d/, 'd') === table.dataset.die;
+  const rowOf = n => inHead ? [...table.tBodies[0].rows].find(tr => keyHas(tr.cells[0].textContent, n)) : null;
+  if (!isOpen() && !(use3d() && narrow())) tray.showPopover();  // on a phone, 3D dice and the result card show instead
+  roll(btn.dataset.roll, {label: rollLabel(btn, table, inHead), show3d: use3d(), highest: true,
+    detail: inHead && (n => { const tr = rowOf(n); return tr ? [...tr.cells].slice(1).map(c => c.textContent.trim()).join(' · ').slice(0, 160) : ''; })})
+    .then(r => {
+      if (!inHead) return;
+      table.querySelector('tr.hit')?.classList.remove('hit');
+      const tr = rowOf(r.total);
+      if (tr) { tr.classList.add('hit'); tr.scrollIntoView({block: 'nearest', behavior: REDUCE.matches ? 'auto' : 'smooth'}); }
+    }, err => showStatus(err.message));
+});
+renderPool();
+renderHistory();
+reopen();
+
+window.CairnNotify = notify;
+window.CairnDice = Object.freeze({roll, clear: ({fade = false} = {}) => clearTable(fade), open: () => isOpen() || tray.showPopover(), close: () => isOpen() && tray.hidePopover(), get history() { return rolls.slice(); }});
 }
 
 </script>
